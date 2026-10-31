@@ -32,6 +32,10 @@ _Avoid_: Controller, pad
 One of the discrete speed levels a Locomotive can be set to: positive is forward, negative is reverse, zero is stopped.
 _Avoid_: Gear, notch, throttle, marcia
 
+**Direction**:
+Whether a Locomotive moves forward or in reverse.
+_Avoid_: Senso di marcia, verso
+
 **Power**:
 The 0–255 output level a Battery Cube applies to a Channel.
 _Avoid_: Speed, PWM

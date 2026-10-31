@@ -10,7 +10,7 @@ Idee rinviate, da riprendere in iterazioni future. Formato: [TODO.md](https://gi
 - [x] Inerzia (accelerazione e frenata graduali) #control-desk-v1
 - [ ] Valori separati per accelerazione e frenata #inertia
 - [ ] Indicatore di accelerazione e frenata #inertia
-- [ ] Pausa a zero durante l’inversione #inertia
+- [-] Pausa a zero durante l’inversione #inertia
 - [ ] Ripetizione tenendo premuto #control-desk-v1
 - [ ] Uso del tasto verde (es. stop di emergenza) #control-desk-v1
 - [ ] Pannello di log nell'app #control-desk-v1
