@@ -1,0 +1,9 @@
+{
+  "network": {
+    "allowedDomains": [
+      "webbluetoothcg.github.io",
+      "android.googlesource.com",
+      "bluetooth.spec.whatwg.org"
+    ]
+  }
+}
