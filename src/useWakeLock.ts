@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 export function useWakeLock(cube: Readonly<Ref<boolean>>, remote: Readonly<Ref<boolean>>) {
   let lock: WakeLockSentinel | undefined
   let pending = false
+  let retry = false
   let disposed = false
   const wanted = () => !disposed && (cube.value || remote.value) && document.visibilityState === 'visible'
 
@@ -21,8 +22,13 @@ export function useWakeLock(cube: Readonly<Ref<boolean>>, remote: Readonly<Ref<b
       await release()
       return
     }
-    if (lock || pending) return
+    if (pending) {
+      retry = true
+      return
+    }
+    if (lock) return
     pending = true
+    retry = false
     try {
       const acquired = await navigator.wakeLock.request('screen')
       if (acquired.released) return
@@ -35,6 +41,7 @@ export function useWakeLock(cube: Readonly<Ref<boolean>>, remote: Readonly<Ref<b
       console.error('Screen Wake Lock:', error)
     } finally {
       pending = false
+      if (retry && wanted()) void update()
     }
   }
 

@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
-import { command, nextStep, power } from '../driving'
+import { command, nextStep } from '../driving'
 
 it('calcola la Power per ogni Speed step', () => {
-  expect([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map(power)).toEqual([255, 211, 168, 124, 80, 0, 80, 124, 168, 211, 255])
+  expect([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map(step => command(step))).toEqual(['-255a', '-211a', '-168a', '-124a', '-080a', '+000a', '+080a', '+124a', '+168a', '+211a', '+255a'])
 })
 
 it('codifica la Power con tre cifre e il segno', () => {

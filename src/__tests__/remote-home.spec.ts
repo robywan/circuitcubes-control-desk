@@ -65,3 +65,50 @@ it('connette il Remote, attiva i tasti e ferma la Locomotive alla disconnessione
   expect(cubeWrites.slice(-2)).toEqual(['+080a', '+000a'])
   view.unmount()
 })
+
+it.each([1, 0xff])('ignora il tasto Remote %s durante lo stop e attende le scritture prima di disconnettere il Battery Cube', async button => {
+  const messages: string[] = []
+  const pending: (() => void)[] = []
+  const characteristic = Object.assign(new EventTarget(), {
+    value: new DataView(new ArrayBuffer(0)),
+    startNotifications: async () => {},
+  })
+  const device = (ch: unknown) => Object.assign(new EventTarget(), {
+    gatt: {
+      connect: async () => ({ connected: true, getPrimaryService: async () => ({ getCharacteristic: async () => ch }) }),
+      disconnect: () => { messages.push('disconnect') },
+    },
+  })
+  const cube = device({ writeValueWithResponse: (value: Uint8Array) => {
+    messages.push(new TextDecoder().decode(value))
+    return new Promise<void>(resolve => pending.push(resolve))
+  } })
+  const remote = device(characteristic)
+  const requestDevice = vi.fn<() => Promise<typeof remote>>().mockResolvedValueOnce(cube).mockResolvedValueOnce(remote)
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice } })
+  const view = mount(HomeView)
+  await view.findAll('button')[0]!.trigger('click')
+  await flushPromises()
+  await view.findAll('button')[1]!.trigger('click')
+  await flushPromises()
+  const notify = (button: number) => {
+    characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 0, button]).buffer)
+    characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+  }
+  notify(1)
+  await flushPromises()
+  await view.findAll('button')[0]!.trigger('click')
+  notify(button)
+  await flushPromises()
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+  expect(messages).toEqual(['+080a'])
+  pending.shift()!()
+  await flushPromises()
+  expect(messages).toEqual(['+080a', '+000a'])
+  notify(button)
+  pending.shift()!()
+  await flushPromises()
+  expect(messages).toEqual(['+080a', '+000a', 'disconnect'])
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+  view.unmount()
+})

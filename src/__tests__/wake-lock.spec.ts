@@ -145,3 +145,27 @@ it('requests screen lock for the first device and releases after the last discon
   await flushPromises()
   expect(release).toHaveBeenCalledTimes(1)
 })
+
+it.each(['rejected', 'released'])('retries a %s pending request after visibility returns, without looping on denial', async mode => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  let finish!: () => void
+  request.mockReturnValueOnce(new Promise((resolve, reject) => {
+    finish = () => {
+      if (mode === 'rejected') reject(new Error('hidden'))
+      else resolve(Object.assign(sentinel(), { released: true }))
+    }
+  }))
+  request.mockRejectedValue(new Error('denied'))
+  cube.value = true
+  start()
+  const visibility = vi.mocked(Object.getOwnPropertyDescriptor(document, 'visibilityState')!.get!)
+  visibility.mockReturnValue('hidden')
+  document.dispatchEvent(new Event('visibilitychange'))
+  visibility.mockReturnValue('visible')
+  document.dispatchEvent(new Event('visibilitychange'))
+  finish()
+  await flushPromises()
+  expect(request).toHaveBeenCalledTimes(2)
+  await flushPromises()
+  expect(request).toHaveBeenCalledTimes(2)
+})

@@ -1,11 +1,11 @@
 import { onUnmounted, ref } from 'vue'
-import { command, nextStep } from './driving'
-import { defaultSettings, type Settings } from './settings'
+import { command, nextStep, type Action } from './driving'
+import type { Settings } from './settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 
-export function useBatteryCube(settings: () => Settings = () => defaultSettings) {
+export function useBatteryCube(settings: () => Settings) {
   const available = !!navigator.bluetooth
   const connected = ref(false)
   const busy = ref(false)
@@ -23,8 +23,8 @@ export function useBatteryCube(settings: () => Settings = () => defaultSettings)
     if (!status.value.startsWith('Errore')) status.value = 'Disconnesso'
   }
 
-  function drive(action: -1 | 0 | 1) {
-    if (!connected.value || !characteristic) return
+  function drive(action: Action) {
+    if (!connected.value || !characteristic || (busy.value && action !== 0)) return
     const next = nextStep(step.value, action)
     if (next === step.value) return
     step.value = next

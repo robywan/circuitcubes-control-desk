@@ -16,7 +16,7 @@ it('avvisa quando Bluetooth non è disponibile e disabilita i comandi', () => {
   expect(view.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(true)
 })
 
-it('connette, serializza i comandi e azzera la marcia alla disconnessione', async () => {
+it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', async () => {
   const device = new EventTarget() as EventTarget & { gatt: { connected: boolean; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> } }
   let finish!: () => void
   const first = new Promise<void>((resolve) => { finish = resolve })

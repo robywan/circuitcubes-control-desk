@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useBatteryCube } from '../useBatteryCube'
 import { useRemote } from '../useRemote'
-import { loadSettings, validPower } from '../settings'
+import { channels, loadSettings, validPower } from '../settings'
 import { useWakeLock } from '../useWakeLock'
 
 const storageKey = 'control-desk-settings'
@@ -71,7 +71,7 @@ useWakeLock(connected, remote.connected)
         <fieldset>
           <legend class="font-semibold">Channel</legend>
           <div class="flex gap-4">
-            <label v-for="channel in (['A', 'B', 'C'] as const)" :key="channel" class="flex items-center gap-2"><input v-model="settings.channel" type="radio" name="channel" :value="channel"> {{ channel }}</label>
+            <label v-for="channel in channels" :key="channel" class="flex items-center gap-2"><input v-model="settings.channel" type="radio" name="channel" :value="channel"> {{ channel }}</label>
           </div>
         </fieldset>
         <label class="flex items-center gap-2"><input v-model="settings.inverted" type="checkbox"> Inversione senso di marcia</label>

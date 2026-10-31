@@ -4,7 +4,7 @@ import HomeView from '../views/HomeView.vue'
 
 afterEach(() => { localStorage.clear(); vi.unstubAllGlobals() })
 
-it('salva le impostazioni, blocca le modifiche in marcia e applica Channel e Power', async () => {
+it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e applica Channel e Power', async () => {
   const writes: string[] = []
   const device = new EventTarget() as EventTarget & { gatt: { connect: () => Promise<unknown>; disconnect: () => void } }
   device.gatt = { connect: async () => ({ connected: true, getPrimaryService: async () => ({ getCharacteristic: async () => ({ writeValueWithResponse: async (v: Uint8Array) => { writes.push(new TextDecoder().decode(v)) } }) }) }), disconnect: () => {} }

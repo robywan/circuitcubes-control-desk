@@ -1,5 +1,7 @@
+export const channels = ['A', 'B', 'C'] as const
+
 export interface Settings {
-  channel: 'A' | 'B' | 'C'
+  channel: typeof channels[number]
   inverted: boolean
   minPower: number
   maxPower: number
@@ -21,7 +23,7 @@ export function loadSettings(raw: string | null): Settings {
   const minPower = validPower(data.minPower) ? data.minPower : defaultSettings.minPower
   const maxPower = validPower(data.maxPower) ? data.maxPower : defaultSettings.maxPower
   return {
-    channel: data.channel === 'A' || data.channel === 'B' || data.channel === 'C' ? data.channel : defaultSettings.channel,
+    channel: channels.find(channel => channel === data.channel) ?? defaultSettings.channel,
     inverted: typeof data.inverted === 'boolean' ? data.inverted : defaultSettings.inverted,
     minPower: minPower <= maxPower ? minPower : defaultSettings.minPower,
     maxPower: minPower <= maxPower ? maxPower : defaultSettings.maxPower,

@@ -1,10 +1,12 @@
 import { onUnmounted, ref } from 'vue'
+import type { Action } from './driving'
+import type { Settings } from './settings'
 import { decodeRemote } from './remote'
 
 const SERVICE = '00001623-1212-efde-1623-785feabcd123'
 const CHARACTERISTIC = '00001624-1212-efde-1623-785feabcd123'
 
-export function useRemote(drive: (action: -1 | 0 | 1) => void, side: () => 'left' | 'right' = () => 'left') {
+export function useRemote(drive: (action: Action) => void, side: () => Settings['remoteSide']) {
   const connected = ref(false)
   const busy = ref(false)
   const status = ref('Disconnesso')

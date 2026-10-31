@@ -1,4 +1,6 @@
-export function decodeRemote(value: DataView): { port: number; action: -1 | 0 | 1 } | undefined {
+import type { Action } from './driving'
+
+export function decodeRemote(value: DataView): { port: number; action: Action } | undefined {
   if (value.byteLength < 5 || value.getUint8(2) !== 0x45) return
   const port = value.getUint8(3)
   if (port !== 0 && port !== 1) return
