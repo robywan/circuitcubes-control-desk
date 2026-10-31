@@ -7,4 +7,4 @@ template-append = """
 copy-local-files = "wt step copy-ignored --require-include"
 
 [[pre-start]]
-ddev-npm-install = "npm install"
+npm-install = "npm install"
