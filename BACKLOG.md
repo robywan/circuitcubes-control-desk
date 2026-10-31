@@ -11,6 +11,7 @@ Idee rinviate, da riprendere in iterazioni future. Formato: [TODO.md](https://gi
 - [ ] Valori separati per accelerazione e frenata #inertia
 - [ ] Indicatore di accelerazione e frenata #inertia
 - [-] Pausa a zero durante l’inversione #inertia
+- [ ] Stall power configurabile nelle Impostazioni (da tarare sul motore reale) #stall-power
 - [ ] Ripetizione tenendo premuto #control-desk-v1
 - [ ] Uso del tasto verde (es. stop di emergenza) #control-desk-v1
 - [ ] Pannello di log nell'app #control-desk-v1

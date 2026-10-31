@@ -40,6 +40,10 @@ _Avoid_: Senso di marcia, verso
 The 0–255 output level a Battery Cube applies to a Channel.
 _Avoid_: Speed, PWM
 
+**Stall power**:
+The Power below which a Locomotive's motors do not turn: when starting, the Power jumps from 0 to it, and when stopping, it drops from it to 0. The Power of Speed step ±1 is never below it.
+_Avoid_: Threshold, minimum power, Power minima, soglia
+
 **Inertia**:
 The gradual change of the Power towards the Power of the current Speed step, the same when accelerating and when braking.
 _Avoid_: Momentum, ramp, rampa
