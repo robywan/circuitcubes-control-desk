@@ -5,6 +5,7 @@ import HomeView from '../views/HomeView.vue'
 const txId = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -116,6 +117,110 @@ it.each(['notifications', 'request'])(
     view.unmount()
   },
 )
+
+it('aggiorna la Battery voltage ogni 60 s e riparte una sola volta dopo la riconnessione', async () => {
+  vi.useFakeTimers()
+  const tx = Object.assign(new EventTarget(), {
+    startNotifications: async () => {},
+    value: new DataView(new ArrayBuffer(0)),
+  })
+  const messages: string[] = []
+  const rx = {
+    properties: { write: true },
+    writeValueWithResponse: async (value: Uint8Array) => {
+      messages.push(new TextDecoder().decode(value))
+    },
+  }
+  const device = Object.assign(new EventTarget(), {
+    gatt: {
+      connect: async () => ({
+        connected: true,
+        getPrimaryService: async () => ({
+          getCharacteristic: async (id: string) => (id === txId ? tx : rx),
+        }),
+      }),
+      disconnect: () => {},
+    },
+  })
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
+  const view = mount(HomeView)
+  await view.get('button').trigger('click')
+  await flushPromises()
+  expect(messages).toEqual(['b'])
+  await vi.advanceTimersByTimeAsync(59_999)
+  expect(messages).toEqual(['b'])
+  await vi.advanceTimersByTimeAsync(1)
+  expect(messages).toEqual(['b', 'b'])
+  const bytes = new TextEncoder().encode('3.76')
+  tx.value = new DataView(bytes.buffer)
+  tx.dispatchEvent(new Event('characteristicvaluechanged'))
+  await view.vm.$nextTick()
+  expect(view.text()).toContain('Batteria 3,76 V')
+  device.dispatchEvent(new Event('gattserverdisconnected'))
+  await vi.advanceTimersByTimeAsync(120_000)
+  expect(messages).toEqual(['b', 'b'])
+  expect(view.text()).not.toContain('Batteria')
+  await view.get('button').trigger('click')
+  await flushPromises()
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(messages).toEqual(['b', 'b', 'b', 'b'])
+  view.unmount()
+  await vi.advanceTimersByTimeAsync(120_000)
+  expect(messages).toEqual(['b', 'b', 'b', 'b'])
+})
+
+it('annulla le letture in coda e i timer mentre lo Stop finale è in corso', async () => {
+  vi.useFakeTimers()
+  let finishDrive!: () => void
+  let finishStop!: () => void
+  const drivePending = new Promise<void>((resolve) => {
+    finishDrive = resolve
+  })
+  const stopPending = new Promise<void>((resolve) => {
+    finishStop = resolve
+  })
+  const messages: string[] = []
+  const tx = Object.assign(new EventTarget(), { startNotifications: async () => {} })
+  const rx = {
+    properties: { write: true },
+    writeValueWithResponse: async (value: Uint8Array) => {
+      const message = new TextDecoder().decode(value)
+      messages.push(message)
+      if (message === '+080a') await drivePending
+      if (message === '+000a') await stopPending
+    },
+  }
+  const device = Object.assign(new EventTarget(), {
+    gatt: {
+      connect: async () => ({
+        connected: true,
+        getPrimaryService: async () => ({
+          getCharacteristic: async (id: string) => (id === txId ? tx : rx),
+        }),
+      }),
+      disconnect: () => {
+        messages.push('disconnect')
+      },
+    },
+  })
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
+  const view = mount(HomeView)
+  await view.get('button').trigger('click')
+  await flushPromises()
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(messages).toEqual(['b', '+080a'])
+  await view.get('button').trigger('click')
+  finishDrive()
+  await flushPromises()
+  expect(messages).toEqual(['b', '+080a', '+000a'])
+  await vi.advanceTimersByTimeAsync(120_000)
+  expect(messages).toEqual(['b', '+080a', '+000a'])
+  finishStop()
+  await flushPromises()
+  expect(messages).toEqual(['b', '+080a', '+000a', 'disconnect'])
+  view.unmount()
+})
 
 it('ignora la conclusione delle notifiche dopo la disconnessione', async () => {
   let finish!: () => void

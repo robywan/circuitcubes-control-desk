@@ -6,6 +6,7 @@ import type { Settings } from '../settings'
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
+const VOLTAGE_INTERVAL_MS = 60_000
 
 export function useBatteryCube(settings: () => Settings) {
   const available = !!navigator.bluetooth
@@ -19,6 +20,8 @@ export function useBatteryCube(settings: () => Settings) {
   let device: BluetoothDevice | undefined
   let characteristic: BluetoothRemoteGATTCharacteristic | undefined
   let writes = Promise.resolve()
+  let voltageTimer: ReturnType<typeof setInterval> | undefined
+  let polling = false
 
   function onVoltage(event: Event) {
     if (!connected.value || event.target !== notifications || !notifications.value) return
@@ -28,7 +31,14 @@ export function useBatteryCube(settings: () => Settings) {
     else voltage.value = value
   }
 
+  function stopPolling() {
+    polling = false
+    clearInterval(voltageTimer)
+    voltageTimer = undefined
+  }
+
   function disconnected() {
+    stopPolling()
     generation++
     notifications?.removeEventListener('characteristicvaluechanged', onVoltage)
     notifications = undefined
@@ -67,6 +77,7 @@ export function useBatteryCube(settings: () => Settings) {
     if (busy.value) return
     busy.value = true
     if (connected.value) {
+      stopPolling()
       drive(0)
       await writes
       device?.gatt?.disconnect()
@@ -103,14 +114,19 @@ export function useBatteryCube(settings: () => Settings) {
       if (generation !== currentGeneration) return
       if (!server.connected) throw new Error('Battery Cube disconnesso durante la connessione')
       const target = characteristic
-      writes = writes
-        .then(async () => {
-          if (generation !== currentGeneration || characteristic !== target) return
-          const value = new TextEncoder().encode('b')
-          if (target.properties.write) await target.writeValueWithResponse(value)
-          else await target.writeValueWithoutResponse(value)
-        })
-        .catch((error: unknown) => console.error(error))
+      polling = true
+      const requestVoltage = () => {
+        writes = writes
+          .then(async () => {
+            if (!polling || generation !== currentGeneration || characteristic !== target) return
+            const value = new TextEncoder().encode('b')
+            if (target.properties.write) await target.writeValueWithResponse(value)
+            else await target.writeValueWithoutResponse(value)
+          })
+          .catch((error: unknown) => console.error(error))
+      }
+      requestVoltage()
+      voltageTimer = setInterval(requestVoltage, VOLTAGE_INTERVAL_MS)
       connected.value = true
       status.value = 'Connesso'
     } catch (error) {
