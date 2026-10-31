@@ -47,6 +47,7 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
 it.each(['#min-power', '#max-power'])('valida il limite della Power in %s', async (selector) => {
   vi.stubGlobal('navigator', {})
   const view = mount(HomeView)
+  if (selector === '#max-power') await view.get('#min-power').setValue(55)
   const input = view.get(selector)
   const previous = (input.element as HTMLInputElement).value
   expect(input.attributes('min')).toBe('55')
@@ -55,7 +56,6 @@ it.each(['#min-power', '#max-power'])('valida il limite della Power in %s', asyn
     'Inserisci un valore intero tra 55 e 255; la Power minima non può superare la massima.',
   )
   expect((input.element as HTMLInputElement).value).toBe(previous)
-  if (selector === '#max-power') await view.get('#min-power').setValue(55)
   await input.setValue(55)
   expect((input.element as HTMLInputElement).value).toBe('55')
   expect(view.find('#power-error').exists()).toBe(false)

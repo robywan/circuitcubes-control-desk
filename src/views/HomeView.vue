@@ -28,8 +28,7 @@ function setPower(field: 'minPower' | 'maxPower', event: Event) {
     !validPower(value) ||
     (field === 'minPower' ? value > settings.value.maxPower : value < settings.value.minPower)
   ) {
-    error.value =
-      'Inserisci un valore intero tra 55 e 255; la Power minima non può superare la massima.'
+    error.value = `Inserisci un valore intero tra ${STALL_POWER} e 255; la Power minima non può superare la massima.`
     input.value = String(settings.value[field])
     return
   }

@@ -51,7 +51,7 @@ async function connect() {
 it.each([
   ['Aumenta marcia', 'Diminuisci marcia', '+', '−1'],
   ['Diminuisci marcia', 'Aumenta marcia', '-', '+1'],
-])('rampa e frena allo Speed step 1 in entrambe le Direction: %s', async (start, brake, sign, oppositeStep) => {
+])('accelera e frena allo Speed step 1 in entrambe le Direction: %s', async (start, brake, sign, oppositeStep) => {
   const { view, messages } = await connect()
   await view.get(`[aria-label="${start}"]`).trigger('click')
   await flushPromises()
@@ -72,7 +72,7 @@ it.each([
   view.unmount()
 })
 
-it.each(['schermo', 'Remote'])('Stop %s ferma subito durante la rampa allo Speed step 1', async (kind) => {
+it.each(['schermo', 'Remote'])('Stop %s ferma subito durante l’accelerazione allo Speed step 1', async (kind) => {
   const { view, messages, characteristic } = await connect()
   if (kind === 'Remote') {
     await view.findAll('button')[1]!.trigger('click')

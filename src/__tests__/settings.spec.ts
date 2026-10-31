@@ -60,6 +60,7 @@ it.each([
   ['{"minPower":30,"maxPower":200}', 80, 200],
   ['{"minPower":30,"maxPower":60}', 80, 255],
   ['{"minPower":80,"maxPower":54}', 80, 255],
+  ['{"minPower":55,"maxPower":54}', 55, 255],
   ['{"minPower":"x","maxPower":50}', 80, 255],
   ['{"minPower":"x","maxPower":100}', 80, 100],
   ['{"minPower":50,"maxPower":"x"}', 80, 255],

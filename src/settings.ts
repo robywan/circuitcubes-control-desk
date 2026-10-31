@@ -1,4 +1,4 @@
-// docs/research/battery-cube-protocol.md: threshold not measured on a real motor.
+// docs/research/battery-cube-protocol.md: Stall power not measured on a real motor.
 export const STALL_POWER = 55
 
 export const channels = ['A', 'B', 'C'] as const
