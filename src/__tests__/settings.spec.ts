@@ -48,11 +48,22 @@ it.each([
   expect(loadSettings(raw).inertia).toBe(inertia)
 })
 
+it('ripristina la Power minima salvata sotto la Stall power', () => {
+  expect(loadSettings('{"minPower":54,"maxPower":200}')).toMatchObject({
+    minPower: 80,
+    maxPower: 200,
+  })
+})
+
 it.each([
+  ['{"minPower":55,"maxPower":55}', 55, 55],
+  ['{"minPower":30,"maxPower":200}', 80, 200],
+  ['{"minPower":30,"maxPower":60}', 80, 255],
+  ['{"minPower":80,"maxPower":54}', 80, 255],
   ['{"minPower":"x","maxPower":50}', 80, 255],
   ['{"minPower":"x","maxPower":100}', 80, 100],
-  ['{"minPower":50,"maxPower":"x"}', 50, 255],
-  ['{"minPower":0,"maxPower":0}', 0, 0],
+  ['{"minPower":50,"maxPower":"x"}', 80, 255],
+  ['{"minPower":0,"maxPower":0}', 80, 255],
 ])('risolve i fallback rispettando minima ≤ massima: %s', (raw, minPower, maxPower) => {
   expect(loadSettings(raw)).toMatchObject({ minPower, maxPower })
 })

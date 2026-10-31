@@ -43,6 +43,33 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   reloaded.unmount()
 })
 
+it.each(['#min-power', '#max-power'])('valida il limite della Power in %s', async (selector) => {
+  vi.stubGlobal('navigator', {})
+  const view = mount(HomeView)
+  const input = view.get(selector)
+  const previous = (input.element as HTMLInputElement).value
+  expect(input.attributes('min')).toBe('55')
+  await input.setValue(54)
+  expect(view.get('#power-error').text()).toBe(
+    'Inserisci un valore intero tra 55 e 255; la Power minima non può superare la massima.',
+  )
+  expect((input.element as HTMLInputElement).value).toBe(previous)
+  if (selector === '#max-power') await view.get('#min-power').setValue(55)
+  await input.setValue(55)
+  expect((input.element as HTMLInputElement).value).toBe('55')
+  expect(view.find('#power-error').exists()).toBe(false)
+  view.unmount()
+})
+
+it('ricarica la Power minima salvata non valida al default', () => {
+  vi.stubGlobal('navigator', {})
+  localStorage.setItem('control-desk-settings', '{"minPower":30,"maxPower":200}')
+  const view = mount(HomeView)
+  expect((view.get('#min-power').element as HTMLInputElement).value).toBe('80')
+  expect((view.get('#max-power').element as HTMLInputElement).value).toBe('200')
+  view.unmount()
+})
+
 it('salva e ricarica Inerzia, ripristinando il valore precedente se non valido', async () => {
   vi.stubGlobal('navigator', {})
   const view = mount(HomeView)

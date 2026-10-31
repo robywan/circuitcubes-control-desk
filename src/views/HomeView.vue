@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useBatteryCube } from '../composables/useBatteryCube'
 import { useRemote } from '../composables/useRemote'
-import { channels, loadSettings, validInertia, validPower } from '../settings'
+import { channels, loadSettings, STALL_POWER, validInertia, validPower } from '../settings'
 import { useWakeLock } from '../composables/useWakeLock'
 
 const storageKey = 'control-desk-settings'
@@ -29,7 +29,7 @@ function setPower(field: 'minPower' | 'maxPower', event: Event) {
     (field === 'minPower' ? value > settings.value.maxPower : value < settings.value.minPower)
   ) {
     error.value =
-      'Inserisci un valore intero tra 0 e 255; la Power minima non può superare la massima.'
+      'Inserisci un valore intero tra 55 e 255; la Power minima non può superare la massima.'
     input.value = String(settings.value[field])
     return
   }
@@ -156,7 +156,7 @@ useWakeLock(connected, remote.connected)
             >Power minima<input
               id="min-power"
               type="number"
-              min="0"
+              :min="STALL_POWER"
               max="255"
               step="1"
               :value="settings.minPower"
@@ -169,7 +169,7 @@ useWakeLock(connected, remote.connected)
             >Power massima<input
               id="max-power"
               type="number"
-              min="0"
+              :min="STALL_POWER"
               max="255"
               step="1"
               :value="settings.maxPower"

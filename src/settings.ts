@@ -1,3 +1,6 @@
+// docs/research/battery-cube-protocol.md: threshold not measured on a real motor.
+export const STALL_POWER = 55
+
 export const channels = ['A', 'B', 'C'] as const
 
 export interface Settings {
@@ -19,7 +22,7 @@ export const defaultSettings: Settings = {
 }
 
 export function validPower(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 255
+  return typeof value === 'number' && Number.isInteger(value) && value >= STALL_POWER && value <= 255
 }
 
 export function validInertia(value: unknown): value is number {
