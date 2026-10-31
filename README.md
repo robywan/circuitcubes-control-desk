@@ -28,6 +28,12 @@ npm run lint
 npm run build
 ```
 
+## Pubblicazione
+
+L'app è pubblicata su <https://robywan.github.io/circuitcubes-control-desk/>. Il workflow [`deploy.yml`](.github/workflows/deploy.yml) esegue test e build, poi pubblica `dist/` su GitHub Pages a ogni push su `main`. Si può anche lanciare a mano dalla scheda Actions.
+
+Se il repository viene ricreato o spostato, va rifatta una sola configurazione: Settings → Pages → Source: GitHub Actions.
+
 ## Riferimenti
 
 Progetti e documenti consultati su Circuit Cubes, da cui partire per nuove funzioni. Quello che ne abbiamo ricavato sui protocolli, con le citazioni, è in [`docs/research/`](docs/research/): [Battery Cube](docs/research/battery-cube-protocol.md), [Remote](docs/research/remote-protocol.md) e [Web Bluetooth](docs/research/web-bluetooth.md).
