@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useBatteryCube } from '../useBatteryCube'
 import { useRemote } from '../useRemote'
 import { loadSettings, validPower } from '../settings'
+import { useWakeLock } from '../useWakeLock'
 
 const storageKey = 'control-desk-settings'
 let saved: string | null = null
@@ -26,6 +27,7 @@ function setPower(field: 'minPower' | 'maxPower', event: Event) {
 
 const { available, connected, busy, status, step, drive, toggleConnection } = useBatteryCube(() => settings.value)
 const remote = useRemote(drive, () => settings.value.remoteSide)
+useWakeLock(connected, remote.connected)
 </script>
 
 <template>
