@@ -4,7 +4,7 @@ import { decodeRemote } from './remote'
 const SERVICE = '00001623-1212-efde-1623-785feabcd123'
 const CHARACTERISTIC = '00001624-1212-efde-1623-785feabcd123'
 
-export function useRemote(drive: (action: -1 | 0 | 1) => void) {
+export function useRemote(drive: (action: -1 | 0 | 1) => void, side: () => 'left' | 'right' = () => 'left') {
   const connected = ref(false)
   const busy = ref(false)
   const status = ref('Disconnesso')
@@ -46,7 +46,7 @@ export function useRemote(drive: (action: -1 | 0 | 1) => void) {
       return
     }
     const button = decodeRemote(value)
-    if (connected.value && button?.port === 0) drive(button.action)
+    if (connected.value && button?.port === (side() === 'left' ? 0 : 1)) drive(button.action)
   }
 
   async function toggleConnection() {

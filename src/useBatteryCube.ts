@@ -1,10 +1,11 @@
 import { onUnmounted, ref } from 'vue'
 import { command, nextStep } from './driving'
+import { defaultSettings, type Settings } from './settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 
-export function useBatteryCube() {
+export function useBatteryCube(settings: () => Settings = () => defaultSettings) {
   const available = !!navigator.bluetooth
   const connected = ref(false)
   const busy = ref(false)
@@ -28,7 +29,7 @@ export function useBatteryCube() {
     if (next === step.value) return
     step.value = next
     const target = characteristic
-    const value = new TextEncoder().encode(command(next))
+    const value = new TextEncoder().encode(command(next, settings()))
     writes = writes.then(async () => {
       if (characteristic === target) await target.writeValueWithResponse(value)
     }).catch((error: unknown) => {
