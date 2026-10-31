@@ -25,13 +25,12 @@ async function connect() {
       messages.push('disconnect')
     },
   )
-  const remote = batteryDevice(
-    Object.assign(new EventTarget(), {
-      startNotifications: async () => {},
-      writeValueWithResponse: async () => {},
-    }),
-    batteryNotifications(),
-  )
+  const characteristic = Object.assign(new EventTarget(), {
+    value: new DataView(new ArrayBuffer(0)),
+    startNotifications: async () => {},
+    writeValueWithResponse: async () => {},
+  })
+  const remote = batteryDevice(characteristic, batteryNotifications())
   vi.stubGlobal('navigator', {
     wakeLock: {
       request: async () => Object.assign(new EventTarget(), { release: async () => {} }),
@@ -46,8 +45,90 @@ async function connect() {
   const view = mount(HomeView)
   await view.get('button').trigger('click')
   await flushPromises()
-  return { view, messages, remote }
+  return { view, messages, remote, characteristic }
 }
+
+it('ignora la Direction opposta fino allo stop, poi parte solo con una nuova pressione', async () => {
+  const { view, messages } = await connect()
+  const plus = view.get('[aria-label="Aumenta marcia"]')
+  const minus = view.get('[aria-label="Diminuisci marcia"]')
+  for (let i = 0; i < 5; i++) await plus.trigger('click')
+  await vi.advanceTimersByTimeAsync(1000)
+  for (let i = 0; i < 4; i++) await minus.trigger('click')
+  await minus.trigger('click')
+  await minus.trigger('click')
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 168')
+  await vi.advanceTimersByTimeAsync(100)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 159')
+  await vi.advanceTimersByTimeAsync(900)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
+  expect(messages).toContain('+000a')
+  expect(messages.filter((message) => message.startsWith('-'))).toEqual([])
+  await minus.trigger('click')
+  await flushPromises()
+  expect(view.get('[data-testid="step"]').text()).toBe('−1')
+  expect(messages[messages.length - 1]).toBe('-080a')
+  view.unmount()
+})
+
+it('una pressione ignorata prima del tick ritardato non impedisce l’invio di Power 0', async () => {
+  const { view, messages } = await connect()
+  const plus = view.get('[aria-label="Aumenta marcia"]')
+  const minus = view.get('[aria-label="Diminuisci marcia"]')
+  for (let i = 0; i < 5; i++) await plus.trigger('click')
+  await vi.advanceTimersByTimeAsync(1000)
+  for (let i = 0; i < 5; i++) await minus.trigger('click')
+  const now = performance.now()
+  vi.spyOn(performance, 'now').mockReturnValue(now + 2000)
+  await minus.trigger('click')
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 168')
+  await vi.advanceTimersByTimeAsync(100)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
+  expect(messages[messages.length - 1]).toBe('+000a')
+  view.unmount()
+})
+
+it('riprende nella stessa Direction dalla Power raggiunta durante la frenata', async () => {
+  const { view } = await connect()
+  const plus = view.get('[aria-label="Aumenta marcia"]')
+  const minus = view.get('[aria-label="Diminuisci marcia"]')
+  for (let i = 0; i < 5; i++) await plus.trigger('click')
+  await vi.advanceTimersByTimeAsync(1000)
+  for (let i = 0; i < 5; i++) await minus.trigger('click')
+  await vi.advanceTimersByTimeAsync(200)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 150')
+  await plus.trigger('click')
+  expect(view.get('[data-testid="step"]').text()).toBe('+1')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 150')
+  view.unmount()
+})
+
+it('ignora la Direction opposta dal Remote fino allo stop', async () => {
+  const { view, messages, characteristic } = await connect()
+  await view.findAll('button')[1]!.trigger('click')
+  await flushPromises()
+  const press = async (button: number) => {
+    characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 0, button]).buffer)
+    characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+    await view.vm.$nextTick()
+  }
+  for (let i = 0; i < 5; i++) await press(1)
+  await vi.advanceTimersByTimeAsync(1000)
+  for (let i = 0; i < 6; i++) await press(0xff)
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+  await vi.advanceTimersByTimeAsync(100)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 159')
+  await vi.advanceTimersByTimeAsync(900)
+  expect(messages).toContain('+000a')
+  expect(messages.filter((message) => message.startsWith('-'))).toEqual([])
+  await press(0xff)
+  await flushPromises()
+  expect(view.get('[data-testid="step"]').text()).toBe('−1')
+  expect(messages[messages.length - 1]).toBe('-080a')
+  view.unmount()
+})
 
 it.each(['Battery Cube', 'Remote volontario', 'Remote caduta'])(
   'interrompe subito l’accelerazione alla disconnessione: %s',

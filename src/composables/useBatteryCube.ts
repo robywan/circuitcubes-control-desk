@@ -114,7 +114,7 @@ export function useBatteryCube(settings: () => Settings) {
 
   function drive(action: Action) {
     if (!connected.value || !rxCharacteristic || (busy.value && action !== 0)) return
-    const next = nextStep(step.value, action)
+    const next = nextStep(step.value, action, signedPower.value)
     if (next === step.value && (action !== 0 || signedPower.value === 0)) return
     if (driveTimer) updatePower(false)
     step.value = next

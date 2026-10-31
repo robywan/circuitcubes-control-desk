@@ -57,6 +57,7 @@ export function powerCommand(signedPower: number, settings: Settings = defaultSe
   )
 }
 
-export function nextStep(step: number, action: Action): number {
+export function nextStep(step: number, action: Action, signedPower: number): number {
+  if (step === 0 && action !== 0 && signedPower * action < 0) return 0
   return action === 0 ? 0 : Math.max(-5, Math.min(5, step + action))
 }

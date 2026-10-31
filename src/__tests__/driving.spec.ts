@@ -48,10 +48,20 @@ it('codifica la Power con tre cifre e il segno', () => {
   expect(powerCommand(255)).toBe('+255a')
 })
 
+it('ignora la Direction opposta durante la frenata a Speed step zero', () => {
+  expect(nextStep(0, -1, 100)).toBe(0)
+  expect(nextStep(0, 1, -100)).toBe(0)
+})
+
 it('sposta lo Speed step passando per zero e rispettando i limiti', () => {
-  expect(nextStep(1, -1)).toBe(0)
-  expect(nextStep(0, -1)).toBe(-1)
-  expect(nextStep(-5, -1)).toBe(-5)
-  expect(nextStep(5, 1)).toBe(5)
-  expect(nextStep(-3, 0)).toBe(0)
+  expect(nextStep(1, -1, 100)).toBe(0)
+  expect(nextStep(0, -1, 0)).toBe(-1)
+  expect(nextStep(0, 1, 0)).toBe(1)
+  expect(nextStep(0, 1, 100)).toBe(1)
+  expect(nextStep(0, -1, -100)).toBe(-1)
+  expect(nextStep(-5, -1, -255)).toBe(-5)
+  expect(nextStep(5, 1, 255)).toBe(5)
+  expect(nextStep(-3, 0, -100)).toBe(0)
+  expect(nextStep(0, 0, 100)).toBe(0)
+  expect(nextStep(0, 0, -100)).toBe(0)
 })
