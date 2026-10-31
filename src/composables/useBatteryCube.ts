@@ -1,9 +1,11 @@
 import { onUnmounted, ref } from 'vue'
+import { parseBatteryVoltage } from '../battery-voltage'
 import { type Action, command, nextStep } from '../driving'
 import type { Settings } from '../settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
+const TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 
 export function useBatteryCube(settings: () => Settings) {
   const available = !!navigator.bluetooth
@@ -11,11 +13,26 @@ export function useBatteryCube(settings: () => Settings) {
   const busy = ref(false)
   const status = ref('Disconnesso')
   const step = ref(0)
+  const voltage = ref<number | null>(null)
+  let notifications: BluetoothRemoteGATTCharacteristic | undefined
+  let generation = 0
   let device: BluetoothDevice | undefined
   let characteristic: BluetoothRemoteGATTCharacteristic | undefined
   let writes = Promise.resolve()
 
+  function onVoltage(event: Event) {
+    if (!connected.value || event.target !== notifications || !notifications.value) return
+    const text = new TextDecoder().decode(notifications.value)
+    const value = parseBatteryVoltage(text)
+    if (value === null) console.error(`Risposta Battery voltage non valida: ${text}`)
+    else voltage.value = value
+  }
+
   function disconnected() {
+    generation++
+    notifications?.removeEventListener('characteristicvaluechanged', onVoltage)
+    notifications = undefined
+    voltage.value = null
     device?.removeEventListener('gattserverdisconnected', disconnected)
     connected.value = false
     step.value = 0
@@ -58,14 +75,42 @@ export function useBatteryCube(settings: () => Settings) {
       return
     }
     status.value = 'Connessione in corso…'
+    const currentGeneration = generation
     try {
-      device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE] }] })
+      const selected = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [SERVICE] }],
+      })
+      if (generation !== currentGeneration) return
+      device = selected
       device.addEventListener('gattserverdisconnected', disconnected)
       if (!device.gatt) throw new Error('GATT non disponibile')
       const server = await device.gatt.connect()
       const service = await server.getPrimaryService(SERVICE)
-      characteristic = await service.getCharacteristic(RX)
+      const rx = await service.getCharacteristic(RX)
+      if (generation !== currentGeneration) return
+      characteristic = rx
+      try {
+        const tx = await service.getCharacteristic(TX)
+        if (generation !== currentGeneration) return
+        notifications = tx
+        tx.addEventListener('characteristicvaluechanged', onVoltage)
+        await tx.startNotifications()
+      } catch (error) {
+        console.error(error)
+        notifications?.removeEventListener('characteristicvaluechanged', onVoltage)
+        notifications = undefined
+      }
+      if (generation !== currentGeneration) return
       if (!server.connected) throw new Error('Battery Cube disconnesso durante la connessione')
+      const target = characteristic
+      writes = writes
+        .then(async () => {
+          if (generation !== currentGeneration || characteristic !== target) return
+          const value = new TextEncoder().encode('b')
+          if (target.properties.write) await target.writeValueWithResponse(value)
+          else await target.writeValueWithoutResponse(value)
+        })
+        .catch((error: unknown) => console.error(error))
       connected.value = true
       status.value = 'Connesso'
     } catch (error) {
@@ -84,5 +129,5 @@ export function useBatteryCube(settings: () => Settings) {
     disconnected()
   })
 
-  return { available, connected, busy, status, step, drive, toggleConnection }
+  return { available, connected, busy, status, step, voltage, drive, toggleConnection }
 }

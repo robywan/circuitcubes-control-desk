@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
+import { batteryNotifications, txId } from './battery-fixture'
 
 const service = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 
@@ -14,6 +15,7 @@ it.each([true, false])(
     })
     const write = vi
       .fn<(value: Uint8Array) => Promise<void>>()
+      .mockResolvedValueOnce(undefined)
       .mockReturnValueOnce(first)
       .mockResolvedValue(undefined)
     const unsupported = vi
@@ -28,7 +30,10 @@ it.each([true, false])(
       gatt: {
         connect: async () => ({
           connected: true,
-          getPrimaryService: async () => ({ getCharacteristic: async () => characteristic }),
+          getPrimaryService: async () => ({
+            getCharacteristic: async (id: string) =>
+              id === txId ? batteryNotifications() : characteristic,
+          }),
         }),
         disconnect: vi.fn<() => void>(),
       },
@@ -45,10 +50,11 @@ it.each([true, false])(
       .trigger('click')
     await flushPromises()
     expect(unsupported).not.toHaveBeenCalled()
-    expect(write).toHaveBeenCalledTimes(1)
+    expect(write).toHaveBeenCalledTimes(2)
     finish()
     await flushPromises()
     expect(write.mock.calls.map(([value]) => new TextDecoder().decode(value))).toEqual([
+      'b',
       '+080a',
       '+124a',
       '+000a',
@@ -88,6 +94,7 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   })
   const write = vi
     .fn<(value: Uint8Array) => Promise<void>>()
+    .mockResolvedValueOnce(undefined)
     .mockReturnValueOnce(first)
     .mockResolvedValue(undefined)
   const characteristic = {
@@ -97,9 +104,14 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   const server = {
     connected: true,
     getPrimaryService: vi.fn<
-      () => Promise<{ getCharacteristic: () => Promise<typeof characteristic> }>
+      () => Promise<{
+        getCharacteristic: (
+          id: string,
+        ) => Promise<typeof characteristic | ReturnType<typeof batteryNotifications>>
+      }>
     >(async () => ({
-      getCharacteristic: vi.fn<() => Promise<typeof characteristic>>(async () => characteristic),
+      getCharacteristic: async (id: string) =>
+        id === txId ? batteryNotifications() : characteristic,
     })),
   }
   device.gatt = {
@@ -117,11 +129,11 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   const buttons = view.findAll('button')
   await buttons[4]!.trigger('click')
   await buttons[4]!.trigger('click')
-  expect(write).toHaveBeenCalledTimes(1)
-  expect(new TextDecoder().decode(write.mock.calls[0]![0])).toBe('+080a')
+  expect(write).toHaveBeenCalledTimes(2)
+  expect(new TextDecoder().decode(write.mock.calls[1]![0])).toBe('+080a')
   finish()
   await flushPromises()
-  expect(new TextDecoder().decode(write.mock.calls[1]![0])).toBe('+124a')
+  expect(new TextDecoder().decode(write.mock.calls[2]![0])).toBe('+124a')
   device.gatt.connected = false
   device.dispatchEvent(new Event('gattserverdisconnected'))
   await flushPromises()

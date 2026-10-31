@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
+import { batteryNotifications, txId } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -38,7 +39,9 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
     d.gatt = {
       connect: async () => ({
         connected: true,
-        getPrimaryService: async () => ({ getCharacteristic: async () => ch }),
+        getPrimaryService: async () => ({
+          getCharacteristic: async (id: string) => (id === txId ? batteryNotifications() : ch),
+        }),
       }),
       disconnect: () => d.dispatchEvent(new Event('gattserverdisconnected')),
     }
@@ -99,7 +102,7 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
   remote.dispatchEvent(new Event('gattserverdisconnected'))
   await flushPromises()
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(cubeWrites).toEqual(['+080a', '+000a', '-080a', '+000a', '+080a', '+000a'])
+  expect(cubeWrites).toEqual(['b', '+080a', '+000a', '-080a', '+000a', '+080a', '+000a'])
   activePorts.clear()
   await connect()[0]!.trigger('click')
   await flushPromises()
@@ -136,7 +139,9 @@ it.each([1, 0xff])(
         gatt: {
           connect: async () => ({
             connected: true,
-            getPrimaryService: async () => ({ getCharacteristic: async () => ch }),
+            getPrimaryService: async () => ({
+              getCharacteristic: async (id: string) => (id === txId ? batteryNotifications() : ch),
+            }),
           }),
           disconnect: () => {
             messages.push('disconnect')
@@ -146,7 +151,9 @@ it.each([1, 0xff])(
     const cube = device({
       properties: { write: true, writeWithoutResponse: false },
       writeValueWithResponse: (value: Uint8Array) => {
-        messages.push(new TextDecoder().decode(value))
+        const message = new TextDecoder().decode(value)
+        messages.push(message)
+        if (message === 'b') return Promise.resolve()
         return new Promise<void>((resolve) => pending.push(resolve))
       },
     })
@@ -171,14 +178,14 @@ it.each([1, 0xff])(
     notify(button)
     await flushPromises()
     expect(view.get('[data-testid="step"]').text()).toBe('0')
-    expect(messages).toEqual(['+080a'])
+    expect(messages).toEqual(['b', '+080a'])
     pending.shift()!()
     await flushPromises()
-    expect(messages).toEqual(['+080a', '+000a'])
+    expect(messages).toEqual(['b', '+080a', '+000a'])
     notify(button)
     pending.shift()!()
     await flushPromises()
-    expect(messages).toEqual(['+080a', '+000a', 'disconnect'])
+    expect(messages).toEqual(['b', '+080a', '+000a', 'disconnect'])
     expect(view.get('[data-testid="step"]').text()).toBe('0')
     view.unmount()
   },
