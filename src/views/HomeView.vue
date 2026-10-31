@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useBatteryCube } from '../useBatteryCube'
 import { useRemote } from '../useRemote'
+import { useWakeLock } from '../useWakeLock'
 
 const { available, connected, busy, status, step, drive, toggleConnection } = useBatteryCube()
 const remote = useRemote(drive)
+useWakeLock(connected, remote.connected)
 </script>
 
 <template>
