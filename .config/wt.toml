@@ -1,0 +1,10 @@
+[commit.generation]
+template-append = """
+- use italian language for the commit message
+"""
+
+[[pre-start]]
+copy-local-files = "wt step copy-ignored --require-include"
+
+[[pre-start]]
+ddev-npm-install = "npm install"
