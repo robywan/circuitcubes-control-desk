@@ -14,6 +14,10 @@ _Avoid_: Train, loco
 The Circuit Cubes Bluetooth Battery Cube that powers a Locomotive's motors.
 _Avoid_: Circuit Cube, hub
 
+**Battery voltage**:
+The voltage of a Battery Cube's internal battery, as reported by the Battery Cube itself.
+_Avoid_: Battery level, charge, livello batteria
+
 **Channel**:
 One of the three motor outputs (A, B, C) of a Battery Cube.
 _Avoid_: Port, output
