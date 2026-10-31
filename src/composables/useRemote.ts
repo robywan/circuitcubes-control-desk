@@ -1,7 +1,7 @@
 import { onUnmounted, ref } from 'vue'
-import type { Action } from './driving'
-import type { Settings } from './settings'
-import { decodeRemote } from './remote'
+import type { Action } from '../driving'
+import { decodeRemote } from '../remote'
+import type { Settings } from '../settings'
 
 const SERVICE = '00001623-1212-efde-1623-785feabcd123'
 const CHARACTERISTIC = '00001624-1212-efde-1623-785feabcd123'
@@ -25,19 +25,17 @@ export function useRemote(drive: (action: Action) => void, side: () => Settings[
     if (!status.value.startsWith('Errore')) status.value = 'Disconnesso'
   }
 
-  function notification(event: Event) {
-    const target = event.target as BluetoothRemoteGATTCharacteristic
-    const value = target.value
-    if (!value) return
-    if (value.byteLength >= 4 && value.getUint8(2) === 0x04 && value.getUint8(3) === 0x3c) {
-      const current = generation
-      writes = writes.then(async () => {
+  function activateButtons(target: BluetoothRemoteGATTCharacteristic) {
+    const current = generation
+    writes = writes
+      .then(async () => {
         for (const port of [0, 1]) {
           await new Promise((resolve) => setTimeout(resolve, 100))
           if (generation !== current || characteristic !== target) return
-          await target.writeValueWithResponse(new Uint8Array([0x41, port, 0, 1, 0, 0, 0, 1]))
+          await target.writeValueWithResponse(new Uint8Array([10, 0, 0x41, port, 0, 1, 0, 0, 0, 1]))
         }
-      }).catch((error: unknown) => {
+      })
+      .catch((error: unknown) => {
         console.error(error)
         if (generation === current && characteristic === target) {
           status.value = 'Errore di scrittura'
@@ -45,8 +43,12 @@ export function useRemote(drive: (action: Action) => void, side: () => Settings[
           disconnected()
         }
       })
-      return
-    }
+  }
+
+  function notification(event: Event) {
+    const target = event.target as BluetoothRemoteGATTCharacteristic
+    const value = target.value
+    if (!value) return
     const button = decodeRemote(value)
     if (connected.value && button?.port === (side() === 'left' ? 0 : 1)) drive(button.action)
   }
@@ -73,6 +75,7 @@ export function useRemote(drive: (action: Action) => void, side: () => Settings[
       if (!server.connected) throw new Error('Remote disconnesso durante la connessione')
       connected.value = true
       status.value = 'Connesso'
+      activateButtons(characteristic)
     } catch (error) {
       console.error(error)
       device?.gatt?.disconnect()

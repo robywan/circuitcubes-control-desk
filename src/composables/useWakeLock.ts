@@ -5,11 +5,13 @@ export function useWakeLock(cube: Readonly<Ref<boolean>>, remote: Readonly<Ref<b
   let pending = false
   let retry = false
   let disposed = false
-  const wanted = () => !disposed && (cube.value || remote.value) && document.visibilityState === 'visible'
+  const wanted = () =>
+    !disposed && (cube.value || remote.value) && document.visibilityState === 'visible'
 
   async function release() {
     const previous = lock
     lock = undefined
+    
     try {
       await previous?.release()
     } catch (error) {
@@ -22,20 +24,28 @@ export function useWakeLock(cube: Readonly<Ref<boolean>>, remote: Readonly<Ref<b
       await release()
       return
     }
+
     if (pending) {
       retry = true
       return
     }
+
     if (lock) return
+
     pending = true
     retry = false
+
     try {
       const acquired = await navigator.wakeLock.request('screen')
       if (acquired.released) return
       lock = acquired
-      acquired.addEventListener('release', () => {
-        if (lock === acquired) lock = undefined
-      }, { once: true })
+      acquired.addEventListener(
+        'release',
+        () => {
+          if (lock === acquired) lock = undefined
+        },
+        { once: true },
+      )
       if (!wanted()) await release()
     } catch (error) {
       console.error('Screen Wake Lock:', error)

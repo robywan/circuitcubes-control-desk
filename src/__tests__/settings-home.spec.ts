@@ -1,13 +1,31 @@
-import { afterEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
 
-afterEach(() => { localStorage.clear(); vi.unstubAllGlobals() })
+afterEach(() => {
+  localStorage.clear()
+  vi.unstubAllGlobals()
+})
 
 it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e applica Channel e Power', async () => {
   const writes: string[] = []
-  const device = new EventTarget() as EventTarget & { gatt: { connect: () => Promise<unknown>; disconnect: () => void } }
-  device.gatt = { connect: async () => ({ connected: true, getPrimaryService: async () => ({ getCharacteristic: async () => ({ writeValueWithResponse: async (v: Uint8Array) => { writes.push(new TextDecoder().decode(v)) } }) }) }), disconnect: () => {} }
+  const device = new EventTarget() as EventTarget & {
+    gatt: { connect: () => Promise<unknown>; disconnect: () => void }
+  }
+  device.gatt = {
+    connect: async () => ({
+      connected: true,
+      getPrimaryService: async () => ({
+        getCharacteristic: async () => ({
+          properties: { write: true, writeWithoutResponse: false },
+          writeValueWithResponse: async (v: Uint8Array) => {
+            writes.push(new TextDecoder().decode(v))
+          },
+        }),
+      }),
+    }),
+    disconnect: () => {},
+  }
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('input[value="B"]').setValue()
@@ -33,17 +51,40 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
 
 it('usa solo il lato Remote configurato', async () => {
   localStorage.setItem('control-desk-settings', JSON.stringify({ remoteSide: 'right' }))
-  const characteristic = new EventTarget() as EventTarget & { value: DataView; startNotifications: () => Promise<unknown> }
+  const characteristic = new EventTarget() as EventTarget & {
+    value: DataView
+    startNotifications: () => Promise<unknown>
+  }
   characteristic.startNotifications = async () => characteristic
   const device = (ch: unknown) => {
-    const d = new EventTarget() as EventTarget & { gatt: { connect: () => Promise<unknown>; disconnect: () => void } }
-    d.gatt = { connect: async () => ({ connected: true, getPrimaryService: async () => ({ getCharacteristic: async () => ch }) }), disconnect: () => {} }
+    const d = new EventTarget() as EventTarget & {
+      gatt: { connect: () => Promise<unknown>; disconnect: () => void }
+    }
+    d.gatt = {
+      connect: async () => ({
+        connected: true,
+        getPrimaryService: async () => ({ getCharacteristic: async () => ch }),
+      }),
+      disconnect: () => {},
+    }
     return d
   }
   const writes: string[] = []
-  const cube = device({ writeValueWithResponse: async (v: Uint8Array) => { writes.push(new TextDecoder().decode(v)) } })
+  const cube = device({
+    properties: { write: true, writeWithoutResponse: false },
+    writeValueWithResponse: async (v: Uint8Array) => {
+      writes.push(new TextDecoder().decode(v))
+    },
+  })
   const remote = device(characteristic)
-  vi.stubGlobal('navigator', { bluetooth: { requestDevice: vi.fn<() => Promise<typeof cube>>().mockResolvedValueOnce(cube).mockResolvedValueOnce(remote) } })
+  vi.stubGlobal('navigator', {
+    bluetooth: {
+      requestDevice: vi
+        .fn<() => Promise<typeof cube>>()
+        .mockResolvedValueOnce(cube)
+        .mockResolvedValueOnce(remote),
+    },
+  })
   const view = mount(HomeView)
   await view.findAll('button')[0]!.trigger('click')
   await flushPromises()
@@ -60,7 +101,15 @@ it('usa solo il lato Remote configurato', async () => {
 })
 
 it('funziona anche quando localStorage non è disponibile', async () => {
-  vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied') }, setItem: () => { throw new Error('denied') }, clear: () => {} })
+  vi.stubGlobal('localStorage', {
+    getItem: () => {
+      throw new Error('denied')
+    },
+    setItem: () => {
+      throw new Error('denied')
+    },
+    clear: () => {},
+  })
   vi.stubGlobal('navigator', {})
   const view = mount(HomeView)
   await view.get('input[value="B"]').setValue()

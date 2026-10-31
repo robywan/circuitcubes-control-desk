@@ -1,6 +1,6 @@
 import { onUnmounted, ref } from 'vue'
-import { command, nextStep, type Action } from './driving'
-import type { Settings } from './settings'
+import { type Action, command, nextStep } from '../driving'
+import type { Settings } from '../settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
@@ -30,16 +30,20 @@ export function useBatteryCube(settings: () => Settings) {
     step.value = next
     const target = characteristic
     const value = new TextEncoder().encode(command(next, settings()))
-    writes = writes.then(async () => {
-      if (characteristic === target) await target.writeValueWithResponse(value)
-    }).catch((error: unknown) => {
-      console.error(error)
-      if (characteristic === target) {
-        device?.gatt?.disconnect()
-        disconnected()
-        status.value = 'Errore di scrittura'
-      }
-    })
+    writes = writes
+      .then(async () => {
+        if (characteristic !== target) return
+        if (target.properties.write) await target.writeValueWithResponse(value)
+        else await target.writeValueWithoutResponse(value)
+      })
+      .catch((error: unknown) => {
+        console.error(error)
+        if (characteristic === target) {
+          device?.gatt?.disconnect()
+          disconnected()
+          status.value = 'Errore di scrittura'
+        }
+      })
   }
 
   async function toggleConnection() {
