@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryNotifications, txId } from './battery-fixture'
+import { batteryDevice, batteryNotifications, txId } from './battery-fixture'
 
 const service = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 
@@ -26,18 +26,7 @@ it.each([true, false])(
       writeValueWithResponse: withResponse ? write : unsupported,
       writeValueWithoutResponse: withResponse ? unsupported : write,
     }
-    const device = Object.assign(new EventTarget(), {
-      gatt: {
-        connect: async () => ({
-          connected: true,
-          getPrimaryService: async () => ({
-            getCharacteristic: async (id: string) =>
-              id === txId ? batteryNotifications() : characteristic,
-          }),
-        }),
-        disconnect: vi.fn<() => void>(),
-      },
-    })
+    const device = batteryDevice(characteristic, batteryNotifications(), vi.fn<() => void>())
     vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
     const view = mount(HomeView)
     await view.get('button').trigger('click')

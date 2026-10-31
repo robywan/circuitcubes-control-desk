@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryNotifications, txId } from './battery-fixture'
+import { batteryDevice, batteryNotifications } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -21,18 +21,7 @@ it('ferma la Locomotive se l’attivazione del Remote fallisce', async () => {
     },
   })
   const device = (characteristic: unknown) =>
-    Object.assign(new EventTarget(), {
-      gatt: {
-        connect: async () => ({
-          connected: true,
-          getPrimaryService: async () => ({
-            getCharacteristic: async (id: string) =>
-              id === txId ? batteryNotifications() : characteristic,
-          }),
-        }),
-        disconnect: vi.fn<() => void>(),
-      },
-    })
+    batteryDevice(characteristic, batteryNotifications(), vi.fn<() => void>())
   const cube = device({
     properties: { write: true },
     writeValueWithResponse: async (value: Uint8Array) => {

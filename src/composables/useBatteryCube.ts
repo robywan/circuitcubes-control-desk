@@ -8,6 +8,12 @@ const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 const VOLTAGE_INTERVAL_MS = 60_000
 
+function writeCharacteristic(target: BluetoothRemoteGATTCharacteristic, value: Uint8Array<ArrayBuffer>) {
+  return target.properties.write
+    ? target.writeValueWithResponse(value)
+    : target.writeValueWithoutResponse(value)
+}
+
 export function useBatteryCube(settings: () => Settings) {
   const available = !!navigator.bluetooth
   const connected = ref(false)
@@ -15,17 +21,17 @@ export function useBatteryCube(settings: () => Settings) {
   const status = ref('Disconnesso')
   const step = ref(0)
   const voltage = ref<number | null>(null)
-  let notifications: BluetoothRemoteGATTCharacteristic | undefined
+  let txCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
   let generation = 0
   let device: BluetoothDevice | undefined
-  let characteristic: BluetoothRemoteGATTCharacteristic | undefined
+  let rxCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
   let writes = Promise.resolve()
   let voltageTimer: ReturnType<typeof setInterval> | undefined
   let polling = false
 
   function onVoltage(event: Event) {
-    if (!connected.value || event.target !== notifications || !notifications.value) return
-    const text = new TextDecoder().decode(notifications.value)
+    if (!connected.value || event.target !== txCharacteristic || !txCharacteristic.value) return
+    const text = new TextDecoder().decode(txCharacteristic.value)
     const value = parseBatteryVoltage(text)
     if (value === null) console.error(`Risposta Battery voltage non valida: ${text}`)
     else voltage.value = value
@@ -40,32 +46,31 @@ export function useBatteryCube(settings: () => Settings) {
   function disconnected() {
     stopPolling()
     generation++
-    notifications?.removeEventListener('characteristicvaluechanged', onVoltage)
-    notifications = undefined
+    txCharacteristic?.removeEventListener('characteristicvaluechanged', onVoltage)
+    txCharacteristic = undefined
     voltage.value = null
     device?.removeEventListener('gattserverdisconnected', disconnected)
     connected.value = false
     step.value = 0
-    characteristic = undefined
+    rxCharacteristic = undefined
     if (!status.value.startsWith('Errore')) status.value = 'Disconnesso'
   }
 
   function drive(action: Action) {
-    if (!connected.value || !characteristic || (busy.value && action !== 0)) return
+    if (!connected.value || !rxCharacteristic || (busy.value && action !== 0)) return
     const next = nextStep(step.value, action)
     if (next === step.value) return
     step.value = next
-    const target = characteristic
+    const target = rxCharacteristic
     const value = new TextEncoder().encode(command(next, settings()))
     writes = writes
       .then(async () => {
-        if (characteristic !== target) return
-        if (target.properties.write) await target.writeValueWithResponse(value)
-        else await target.writeValueWithoutResponse(value)
+        if (rxCharacteristic !== target) return
+        await writeCharacteristic(target, value)
       })
       .catch((error: unknown) => {
         console.error(error)
-        if (characteristic === target) {
+        if (rxCharacteristic === target) {
           device?.gatt?.disconnect()
           disconnected()
           status.value = 'Errore di scrittura'
@@ -99,29 +104,28 @@ export function useBatteryCube(settings: () => Settings) {
       const service = await server.getPrimaryService(SERVICE)
       const rx = await service.getCharacteristic(RX)
       if (generation !== currentGeneration) return
-      characteristic = rx
+      rxCharacteristic = rx
       try {
         const tx = await service.getCharacteristic(TX)
         if (generation !== currentGeneration) return
-        notifications = tx
+        txCharacteristic = tx
         tx.addEventListener('characteristicvaluechanged', onVoltage)
         await tx.startNotifications()
       } catch (error) {
         console.error(error)
-        notifications?.removeEventListener('characteristicvaluechanged', onVoltage)
-        notifications = undefined
+        txCharacteristic?.removeEventListener('characteristicvaluechanged', onVoltage)
+        txCharacteristic = undefined
       }
       if (generation !== currentGeneration) return
       if (!server.connected) throw new Error('Battery Cube disconnesso durante la connessione')
-      const target = characteristic
+      const target = rxCharacteristic
       polling = true
       const requestVoltage = () => {
         writes = writes
           .then(async () => {
-            if (!polling || generation !== currentGeneration || characteristic !== target) return
+            if (!polling || generation !== currentGeneration || rxCharacteristic !== target) return
             const value = new TextEncoder().encode('b')
-            if (target.properties.write) await target.writeValueWithResponse(value)
-            else await target.writeValueWithoutResponse(value)
+            await writeCharacteristic(target, value)
           })
           .catch((error: unknown) => console.error(error))
       }
