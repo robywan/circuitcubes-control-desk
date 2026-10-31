@@ -36,6 +36,19 @@ it('carica valori validi e ripristina quelli mancanti o non validi', () => {
 })
 
 it.each([
+  ['{"inertia":0}', 0],
+  ['{"inertia":5.5}', 5.5],
+  ['{"inertia":10}', 10],
+  ['{"inertia":-0.5}', 2],
+  ['{"inertia":10.5}', 2],
+  ['{"inertia":1.1}', 2],
+  ['{"inertia":"5"}', 2],
+  ['{}', 2],
+])('carica Inerzia valida o usa il default: %s', (raw, inertia) => {
+  expect(loadSettings(raw).inertia).toBe(inertia)
+})
+
+it.each([
   ['{"minPower":"x","maxPower":50}', 80, 255],
   ['{"minPower":"x","maxPower":100}', 80, 100],
   ['{"minPower":50,"maxPower":"x"}', 50, 255],

@@ -43,6 +43,48 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   reloaded.unmount()
 })
 
+it('salva e ricarica Inerzia, ripristinando il valore precedente se non valido', async () => {
+  vi.stubGlobal('navigator', {})
+  const view = mount(HomeView)
+  await view.get('#inertia').setValue(5.5)
+  await view.get('#inertia').setValue(5.3)
+  expect(view.get('#inertia-error').text()).toContain('0,5')
+  expect((view.get('#inertia').element as HTMLInputElement).value).toBe('5.5')
+  view.unmount()
+  const reloaded = mount(HomeView)
+  expect((reloaded.get('#inertia').element as HTMLInputElement).value).toBe('5.5')
+  reloaded.unmount()
+})
+
+it('applica Inerzia 0 immediatamente e Inerzia 5 alla guida successiva', async () => {
+  vi.useFakeTimers()
+  const writes: string[] = []
+  const device = batteryDevice(
+    { properties: { write: true }, writeValueWithResponse: async (value: Uint8Array) => {
+      writes.push(new TextDecoder().decode(value))
+    } },
+    batteryNotifications(),
+  )
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
+  const view = mount(HomeView)
+  await view.get('#inertia').setValue(0)
+  await view.get('button').trigger('click')
+  await vi.advanceTimersByTimeAsync(0)
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 255')
+  expect(writes[writes.length - 1]).toBe('+255a')
+  expect(view.get('#inertia').element.closest('fieldset[disabled]')).not.toBeNull()
+  await view.findAll('button').find((button) => button.text() === 'Stop')!.trigger('click')
+  await view.get('#inertia').setValue(5)
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 168')
+  await vi.advanceTimersByTimeAsync(2500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 255')
+  view.unmount()
+})
+
 it('mostra la Power fuori dalle regioni live e blocca le impostazioni durante la frenata', async () => {
   vi.useFakeTimers()
   const device = batteryDevice(

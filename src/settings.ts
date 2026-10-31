@@ -22,6 +22,10 @@ export function validPower(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 255
 }
 
+export function validInertia(value: unknown): value is number {
+  return typeof value === 'number' && value >= 0 && value <= 10 && Number.isInteger(value * 2)
+}
+
 export function loadSettings(raw: string | null): Settings {
   let data: Partial<Settings> = {}
 
@@ -39,7 +43,7 @@ export function loadSettings(raw: string | null): Settings {
     inverted: typeof data.inverted === 'boolean' ? data.inverted : defaultSettings.inverted,
     minPower: minPower <= maxPower ? minPower : defaultSettings.minPower,
     maxPower: minPower <= maxPower ? maxPower : defaultSettings.maxPower,
-    inertia: defaultSettings.inertia,
+    inertia: validInertia(data.inertia) ? data.inertia : defaultSettings.inertia,
     remoteSide:
       data.remoteSide === 'left' || data.remoteSide === 'right'
         ? data.remoteSide
