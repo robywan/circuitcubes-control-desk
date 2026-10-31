@@ -48,12 +48,18 @@ async function connect() {
   return { view, messages, remote, characteristic }
 }
 
-it('ignora la Direction opposta fino allo stop, poi parte solo con una nuova pressione', async () => {
-  const { view, messages } = await connect()
+async function accelerateToPower168() {
+  const connection = await connect()
+  const { view } = connection
   const plus = view.get('[aria-label="Aumenta marcia"]')
   const minus = view.get('[aria-label="Diminuisci marcia"]')
   for (let i = 0; i < 5; i++) await plus.trigger('click')
   await vi.advanceTimersByTimeAsync(1000)
+  return { ...connection, plus, minus }
+}
+
+it('ignora la Direction opposta fino allo stop, poi parte solo con una nuova pressione', async () => {
+  const { view, messages, minus } = await accelerateToPower168()
   for (let i = 0; i < 4; i++) await minus.trigger('click')
   await minus.trigger('click')
   await minus.trigger('click')
@@ -73,11 +79,7 @@ it('ignora la Direction opposta fino allo stop, poi parte solo con una nuova pre
 })
 
 it('una pressione ignorata prima del tick ritardato non impedisce l’invio di Power 0', async () => {
-  const { view, messages } = await connect()
-  const plus = view.get('[aria-label="Aumenta marcia"]')
-  const minus = view.get('[aria-label="Diminuisci marcia"]')
-  for (let i = 0; i < 5; i++) await plus.trigger('click')
-  await vi.advanceTimersByTimeAsync(1000)
+  const { view, messages, minus } = await accelerateToPower168()
   for (let i = 0; i < 5; i++) await minus.trigger('click')
   const now = performance.now()
   vi.spyOn(performance, 'now').mockReturnValue(now + 2000)
@@ -91,11 +93,7 @@ it('una pressione ignorata prima del tick ritardato non impedisce l’invio di P
 })
 
 it('riprende nella stessa Direction dalla Power raggiunta durante la frenata', async () => {
-  const { view } = await connect()
-  const plus = view.get('[aria-label="Aumenta marcia"]')
-  const minus = view.get('[aria-label="Diminuisci marcia"]')
-  for (let i = 0; i < 5; i++) await plus.trigger('click')
-  await vi.advanceTimersByTimeAsync(1000)
+  const { view, plus, minus } = await accelerateToPower168()
   for (let i = 0; i < 5; i++) await minus.trigger('click')
   await vi.advanceTimersByTimeAsync(200)
   expect(view.get('[data-testid="power"]').text()).toBe('Power 150')
