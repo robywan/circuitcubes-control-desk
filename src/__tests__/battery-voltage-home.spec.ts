@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
 
-const txId = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
+import { batteryDevice } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -26,17 +26,7 @@ it('attende le notifiche, richiede la Battery voltage e la mostra fuori dalla re
       messages.push(new TextDecoder().decode(value))
     },
   }
-  const device = Object.assign(new EventTarget(), {
-    gatt: {
-      connect: async () => ({
-        connected: true,
-        getPrimaryService: async () => ({
-          getCharacteristic: async (id: string) => (id === txId ? tx : rx),
-        }),
-      }),
-      disconnect: () => {},
-    },
-  })
+  const device = batteryDevice(rx, tx)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('button').trigger('click')
@@ -52,6 +42,7 @@ it('attende le notifiche, richiede la Battery voltage e la mostra fuori dalla re
   tx.dispatchEvent(new Event('characteristicvaluechanged'))
   await flushPromises()
   expect(view.text()).toContain('· Batteria 3,85 V')
+  expect(view.findAll('span').find((span) => span.text().includes('· Batteria'))!.classes()).toContain('ml-1')
   expect(
     view.findAll('[role="status"]').every((status) => !status.text().includes('Batteria')),
   ).toBe(true)
@@ -92,17 +83,7 @@ it.each(['notifications', 'request'])(
       },
     }
     const disconnect = vi.fn<() => void>()
-    const device = Object.assign(new EventTarget(), {
-      gatt: {
-        connect: async () => ({
-          connected: true,
-          getPrimaryService: async () => ({
-            getCharacteristic: async (id: string) => (id === txId ? tx : rx),
-          }),
-        }),
-        disconnect,
-      },
-    })
+    const device = batteryDevice(rx, tx, disconnect)
     vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
     const view = mount(HomeView)
     await view.get('button').trigger('click')
@@ -131,17 +112,7 @@ it('aggiorna la Battery voltage ogni 60 s e riparte una sola volta dopo la ricon
       messages.push(new TextDecoder().decode(value))
     },
   }
-  const device = Object.assign(new EventTarget(), {
-    gatt: {
-      connect: async () => ({
-        connected: true,
-        getPrimaryService: async () => ({
-          getCharacteristic: async (id: string) => (id === txId ? tx : rx),
-        }),
-      }),
-      disconnect: () => {},
-    },
-  })
+  const device = batteryDevice(rx, tx)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('button').trigger('click')
@@ -190,18 +161,8 @@ it('annulla le letture in coda e i timer mentre lo Stop finale è in corso', asy
       if (message === '+000a') await stopPending
     },
   }
-  const device = Object.assign(new EventTarget(), {
-    gatt: {
-      connect: async () => ({
-        connected: true,
-        getPrimaryService: async () => ({
-          getCharacteristic: async (id: string) => (id === txId ? tx : rx),
-        }),
-      }),
-      disconnect: () => {
-        messages.push('disconnect')
-      },
-    },
+  const device = batteryDevice(rx, tx, () => {
+    messages.push('disconnect')
   })
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
@@ -230,17 +191,7 @@ it('ignora la conclusione delle notifiche dopo la disconnessione', async () => {
   const tx = Object.assign(new EventTarget(), { startNotifications: () => pending })
   const write = vi.fn<() => void>()
   const rx = { properties: { write: true }, writeValueWithResponse: write }
-  const device = Object.assign(new EventTarget(), {
-    gatt: {
-      connect: async () => ({
-        connected: true,
-        getPrimaryService: async () => ({
-          getCharacteristic: async (id: string) => (id === txId ? tx : rx),
-        }),
-      }),
-      disconnect: () => {},
-    },
-  })
+  const device = batteryDevice(rx, tx)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('button').trigger('click')

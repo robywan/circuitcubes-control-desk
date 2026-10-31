@@ -59,7 +59,7 @@ useWakeLock(connected, remote.connected)
         <strong>Battery Cube</strong>
         <div class="min-w-0 flex-1 text-sm">
           <span role="status">{{ status }}</span>
-          <span v-if="connected && voltage !== null" class="inline-block whitespace-nowrap">
+          <span v-if="connected && voltage !== null" class="ml-1 inline-block whitespace-nowrap">
             · Batteria {{ voltage.toFixed(2).replace('.', ',') }} V</span
           >
         </div>

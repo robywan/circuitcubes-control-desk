@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryNotifications, txId } from './battery-fixture'
+import { batteryDevice, batteryNotifications } from './battery-fixture'
 
 afterEach(() => {
   localStorage.clear()
@@ -10,26 +10,15 @@ afterEach(() => {
 
 it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e applica Channel e Power', async () => {
   const writes: string[] = []
-  const device = new EventTarget() as EventTarget & {
-    gatt: { connect: () => Promise<unknown>; disconnect: () => void }
-  }
-  device.gatt = {
-    connect: async () => ({
-      connected: true,
-      getPrimaryService: async () => ({
-        getCharacteristic: async (id: string) =>
-          id === txId
-            ? batteryNotifications()
-            : {
-                properties: { write: true, writeWithoutResponse: false },
-                writeValueWithResponse: async (v: Uint8Array) => {
-                  writes.push(new TextDecoder().decode(v))
-                },
-              },
-      }),
-    }),
-    disconnect: () => {},
-  }
+  const device = batteryDevice(
+    {
+      properties: { write: true, writeWithoutResponse: false },
+      writeValueWithResponse: async (v: Uint8Array) => {
+        writes.push(new TextDecoder().decode(v))
+      },
+    },
+    batteryNotifications(),
+  )
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('input[value="B"]').setValue()
@@ -60,21 +49,7 @@ it('usa solo il lato Remote configurato', async () => {
     startNotifications: () => Promise<unknown>
   }
   characteristic.startNotifications = async () => characteristic
-  const device = (ch: unknown) => {
-    const d = new EventTarget() as EventTarget & {
-      gatt: { connect: () => Promise<unknown>; disconnect: () => void }
-    }
-    d.gatt = {
-      connect: async () => ({
-        connected: true,
-        getPrimaryService: async () => ({
-          getCharacteristic: async (id: string) => (id === txId ? batteryNotifications() : ch),
-        }),
-      }),
-      disconnect: () => {},
-    }
-    return d
-  }
+  const device = (ch: unknown) => batteryDevice(ch, batteryNotifications())
   const writes: string[] = []
   const cube = device({
     properties: { write: true, writeWithoutResponse: false },

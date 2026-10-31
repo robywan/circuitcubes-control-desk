@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryNotifications, txId } from './battery-fixture'
+import { batteryDevice, batteryNotifications } from './battery-fixture'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -11,7 +11,6 @@ afterEach(() => {
 it('se una scrittura fallisce disabilita la guida e mantiene visibile l’errore anche dopo la disconnessione', async () => {
   const error = new Error('write failed')
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  const device = new EventTarget() as EventTarget & { gatt: unknown }
   const characteristic = {
     properties: { write: true, writeWithoutResponse: false },
     writeValueWithResponse: vi
@@ -19,16 +18,7 @@ it('se una scrittura fallisce disabilita la guida e mantiene visibile l’errore
       .mockResolvedValueOnce(undefined)
       .mockRejectedValue(error),
   }
-  device.gatt = {
-    connect: async () => ({
-      connected: true,
-      getPrimaryService: async () => ({
-        getCharacteristic: async (id: string) =>
-          id === txId ? batteryNotifications() : characteristic,
-      }),
-    }),
-    disconnect: () => {},
-  }
+  const device = batteryDevice(characteristic, batteryNotifications())
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('button').trigger('click')
@@ -46,28 +36,16 @@ it('se una scrittura fallisce disabilita la guida e mantiene visibile l’errore
 it('ferma il Battery Cube prima della disconnessione volontaria', async () => {
   const messages: string[] = []
 
-  const device = new EventTarget() as EventTarget & { gatt: unknown }
-
-  device.gatt = {
-    connect: async () => ({
-      connected: true,
-      getPrimaryService: async () => ({
-        getCharacteristic: async (id: string) =>
-          id === txId
-            ? batteryNotifications()
-            : {
-                properties: { write: true, writeWithoutResponse: false },
-                writeValueWithResponse: async (value: Uint8Array) => {
-                  messages.push(new TextDecoder().decode(value))
-                },
-              },
-      }),
-    }),
-
-    disconnect: () => {
-      messages.push('disconnect')
+  const device = batteryDevice(
+    {
+      properties: { write: true, writeWithoutResponse: false },
+      writeValueWithResponse: async (value: Uint8Array) => {
+        messages.push(new TextDecoder().decode(value))
+      },
     },
-  }
+    batteryNotifications(),
+    () => messages.push('disconnect'),
+  )
 
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
 

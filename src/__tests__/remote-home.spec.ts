@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryNotifications, txId } from './battery-fixture'
+import { batteryDevice, batteryNotifications } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -33,18 +33,9 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
     }
   }
   const device = (ch: unknown) => {
-    const d = new EventTarget() as EventTarget & {
-      gatt: { connect: () => Promise<unknown>; disconnect: () => void }
-    }
-    d.gatt = {
-      connect: async () => ({
-        connected: true,
-        getPrimaryService: async () => ({
-          getCharacteristic: async (id: string) => (id === txId ? batteryNotifications() : ch),
-        }),
-      }),
-      disconnect: () => d.dispatchEvent(new Event('gattserverdisconnected')),
-    }
+    const d = batteryDevice(ch, batteryNotifications(), (): void => {
+      d.dispatchEvent(new Event('gattserverdisconnected'))
+    })
     return d
   }
   const cube = device({
@@ -135,18 +126,8 @@ it.each([1, 0xff])(
       startNotifications: async () => {},
     })
     const device = (ch: unknown) =>
-      Object.assign(new EventTarget(), {
-        gatt: {
-          connect: async () => ({
-            connected: true,
-            getPrimaryService: async () => ({
-              getCharacteristic: async (id: string) => (id === txId ? batteryNotifications() : ch),
-            }),
-          }),
-          disconnect: () => {
-            messages.push('disconnect')
-          },
-        },
+      batteryDevice(ch, batteryNotifications(), () => {
+        messages.push('disconnect')
       })
     const cube = device({
       properties: { write: true, writeWithoutResponse: false },
