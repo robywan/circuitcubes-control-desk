@@ -35,3 +35,7 @@ _Avoid_: Gear, notch, throttle, marcia
 **Power**:
 The 0–255 output level a Battery Cube applies to a Channel.
 _Avoid_: Speed, PWM
+
+**Inertia**:
+The gradual change of the Power towards the Power of the current Speed step, the same when accelerating and when braking.
+_Avoid_: Momentum, ramp, rampa
