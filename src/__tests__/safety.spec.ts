@@ -17,13 +17,13 @@ it('se una scrittura fallisce disabilita la guida e mantiene visibile l’errore
   const view = mount(HomeView)
   await view.get('button').trigger('click')
   await flushPromises()
-  await view.findAll('button')[3]!.trigger('click')
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await flushPromises()
   device.dispatchEvent(new Event('gattserverdisconnected'))
   await flushPromises()
   expect(view.text()).toContain('Errore di scrittura')
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(view.findAll('button')[3]!.attributes('disabled')).toBeDefined()
+  expect(view.get('[aria-label="Aumenta marcia"]').attributes('disabled')).toBeDefined()
   expect(console.error).toHaveBeenCalledWith(error)
 })
 
@@ -49,7 +49,7 @@ it('ferma il Battery Cube prima della disconnessione volontaria', async () => {
 
   await flushPromises()
 
-  await view.findAll('button')[3]!.trigger('click')
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
 
   await view.get('button').trigger('click')
 

@@ -32,8 +32,8 @@ it('connette, serializza i comandi e azzera la marcia alla disconnessione', asyn
   expect(requestDevice).toHaveBeenCalledWith({ filters: [{ services: [service] }] })
   expect(view.text()).toContain('Connesso')
   const buttons = view.findAll('button')
-  await buttons[3]!.trigger('click')
-  await buttons[3]!.trigger('click')
+  await buttons[4]!.trigger('click')
+  await buttons[4]!.trigger('click')
   expect(write).toHaveBeenCalledTimes(1)
   expect(new TextDecoder().decode(write.mock.calls[0]![0])).toBe('+080a')
   finish()
@@ -44,7 +44,7 @@ it('connette, serializza i comandi e azzera la marcia alla disconnessione', asyn
   await flushPromises()
   expect(view.text()).toContain('Disconnesso')
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(buttons[3]!.attributes('disabled')).toBeDefined()
+  expect(buttons[4]!.attributes('disabled')).toBeDefined()
 })
 
 it('mostra gli errori di connessione e registra il dettaglio', async () => {

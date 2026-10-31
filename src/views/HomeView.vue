@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useBatteryCube } from '../useBatteryCube'
+import { useRemote } from '../useRemote'
 
 const { available, connected, busy, status, step, drive, toggleConnection } = useBatteryCube()
+const remote = useRemote(drive)
 </script>
 
 <template>
@@ -17,6 +19,13 @@ const { available, connected, busy, status, step, drive, toggleConnection } = us
         <span role="status" class="min-w-0 flex-1 text-sm">{{ status }}</span>
         <button type="button" :disabled="!available || busy" class="rounded border border-slate-600 px-3 py-2 disabled:opacity-50" @click="toggleConnection">
           {{ connected ? 'Disconnetti' : 'Connetti' }}
+        </button>
+      </div>
+      <div class="flex items-center gap-3">
+        <strong>Remote</strong>
+        <span role="status" class="min-w-0 flex-1 text-sm">{{ remote.status.value }}</span>
+        <button type="button" :disabled="!available || remote.busy.value" class="rounded border border-slate-600 px-3 py-2 disabled:opacity-50" @click="remote.toggleConnection">
+          {{ remote.connected.value ? 'Disconnetti' : 'Connetti' }}
         </button>
       </div>
     </section>
