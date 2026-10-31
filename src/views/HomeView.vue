@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useBatteryCube } from '../composables/useBatteryCube'
 import { useRemote } from '../composables/useRemote'
-import { channels, loadSettings, validPower } from '../settings'
+import { channels, loadSettings, validInertia, validPower } from '../settings'
 import { useWakeLock } from '../composables/useWakeLock'
 
 const storageKey = 'control-desk-settings'
@@ -35,6 +35,19 @@ function setPower(field: 'minPower' | 'maxPower', event: Event) {
   }
   error.value = ''
   settings.value[field] = value
+}
+
+const inertiaError = ref('')
+function setInertia(event: Event) {
+  const input = event.target as HTMLInputElement
+  const value = input.valueAsNumber
+  if (!validInertia(value)) {
+    inertiaError.value = 'Inserisci un valore tra 0 e 10 a passi di 0,5.'
+    input.value = String(settings.value.inertia)
+    return
+  }
+  inertiaError.value = ''
+  settings.value.inertia = value
 }
 
 const { available, connected, busy, status, step, power, voltage, drive, toggleConnection } =
@@ -167,6 +180,25 @@ useWakeLock(connected, remote.connected)
           /></label>
         </div>
         <p v-if="error" id="power-error" role="alert" class="text-red-700">{{ error }}</p>
+        <div class="flex gap-3">
+          <label for="inertia" class="min-w-0 flex-1"
+            >Inerzia (s)<input
+              id="inertia"
+              type="number"
+              min="0"
+              max="10"
+              step="0.5"
+              :value="settings.inertia"
+              :aria-invalid="!!inertiaError"
+              aria-describedby="inertia-error"
+              class="block w-full rounded border border-slate-600 px-2 py-1"
+              @change="setInertia"
+          /></label>
+          <div aria-hidden="true" class="min-w-0 flex-1"></div>
+        </div>
+        <p v-if="inertiaError" id="inertia-error" role="alert" class="text-red-700">
+          {{ inertiaError }}
+        </p>
         <fieldset>
           <legend class="font-semibold">Lato del Remote</legend>
           <div class="flex gap-4">
