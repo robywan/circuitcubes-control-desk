@@ -44,7 +44,7 @@ it.each([true, false])(
     await flushPromises()
     expect(write.mock.calls.map(([value]) => new TextDecoder().decode(value))).toEqual([
       'b',
-      '+080a',
+      '+055a',
       '+000a',
     ])
     expect(view.get('[data-testid="step"]').text()).toBe('0')
@@ -118,7 +118,7 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   await buttons[4]!.trigger('click')
   await buttons[4]!.trigger('click')
   expect(write).toHaveBeenCalledTimes(2)
-  expect(new TextDecoder().decode(write.mock.calls[1]![0])).toBe('+080a')
+  expect(new TextDecoder().decode(write.mock.calls[1]![0])).toBe('+055a')
   finish()
   await flushPromises()
   expect(write).toHaveBeenCalledTimes(2)

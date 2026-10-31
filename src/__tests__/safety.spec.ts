@@ -61,7 +61,7 @@ it('ferma il Battery Cube prima della disconnessione volontaria', async () => {
 
   await flushPromises()
 
-  expect(messages).toEqual(['b', '+080a', '+000a', 'disconnect'])
+  expect(messages).toEqual(['b', '+055a', '+000a', 'disconnect'])
 
   expect(view.get('[data-testid="step"]').text()).toBe('0')
 })

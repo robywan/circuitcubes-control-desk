@@ -10,6 +10,7 @@ afterEach(() => {
 })
 
 it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e applica Channel e Power', async () => {
+  vi.useFakeTimers()
   const writes: string[] = []
   const device = batteryDevice(
     {
@@ -37,8 +38,8 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   await reloaded.get('button').trigger('click')
   await flushPromises()
   await reloaded.get('button[aria-label="Aumenta marcia"]').trigger('click')
-  await flushPromises()
-  expect(writes).toEqual(['b', '-100b'])
+  await vi.advanceTimersByTimeAsync(500)
+  expect(writes).toEqual(['b', '-055b', '-065b', '-075b', '-085b', '-095b', '-100b'])
   expect((reloaded.get('fieldset[disabled]').element as HTMLFieldSetElement).disabled).toBe(true)
   reloaded.unmount()
 })
@@ -106,7 +107,7 @@ it('applica Inerzia 0 immediatamente e Inerzia 5 alla guida successiva', async (
   await view.get('#inertia').setValue(5)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(2500)
-  expect(view.get('[data-testid="power"]').text()).toBe('Power 168')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
   await vi.advanceTimersByTimeAsync(2500)
   expect(view.get('[data-testid="power"]').text()).toBe('Power 255')
   view.unmount()
@@ -126,7 +127,7 @@ it('mostra la Power fuori dalle regioni live e blocca le impostazioni durante la
   await vi.advanceTimersByTimeAsync(1000)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
   const display = view.get('[data-testid="power"]')
-  expect(display.text()).toBe('Power 168')
+  expect(display.text()).toBe('Power 155')
   expect(display.element.closest('output, [aria-live], [role="status"], [role="alert"]')).toBeNull()
   expect(view.find('fieldset[disabled]').exists()).toBe(true)
   await vi.advanceTimersByTimeAsync(1000)
@@ -150,7 +151,7 @@ it('accoda solo la Power più recente se una scrittura è lenta', async () => {
       writeValueWithResponse: (value: Uint8Array) => {
         const message = new TextDecoder().decode(value)
         messages.push(message)
-        return message === '+080a' ? blocked : Promise.resolve()
+        return message === '+055a' ? blocked : Promise.resolve()
       },
     },
     batteryNotifications(),
@@ -161,12 +162,12 @@ it('accoda solo la Power più recente se una scrittura è lenta', async () => {
   await vi.advanceTimersByTimeAsync(0)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(500)
-  expect(messages).toEqual(['b', '+080a'])
+  expect(messages).toEqual(['b', '+055a'])
   finish()
   await vi.advanceTimersByTimeAsync(0)
-  expect(messages).toEqual(['b', '+080a', '+124a'])
+  expect(messages).toEqual(['b', '+055a', '+105a'])
   await vi.advanceTimersByTimeAsync(100)
-  expect(messages).toEqual(['b', '+080a', '+124a', '+133a'])
+  expect(messages).toEqual(['b', '+055a', '+105a', '+115a'])
   await view
     .findAll('button')
     .find((button) => button.text() === 'Stop')!
@@ -213,7 +214,7 @@ it('usa solo il lato Remote configurato', async () => {
     characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
   }
   await flushPromises()
-  expect(writes).toEqual(['b', '+080a'])
+  expect(writes).toEqual(['b', '+055a'])
   expect(view.get('[data-testid="step"]').text()).toBe('+1')
   view.unmount()
 })

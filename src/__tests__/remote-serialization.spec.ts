@@ -47,7 +47,7 @@ it('ferma la Locomotive se l’attivazione del Remote fallisce', async () => {
   expect(remote.gatt.disconnect).toHaveBeenCalledOnce()
   expect(view.text()).toContain('Errore di scrittura')
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(commands).toEqual(['b', '+080a', '+000a'])
+  expect(commands).toEqual(['b', '+055a', '+065a', '+000a'])
   view.unmount()
 })
 

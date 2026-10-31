@@ -1,4 +1,4 @@
-import { defaultSettings, type Settings } from './settings'
+import { defaultSettings, STALL_POWER, type Settings } from './settings'
 
 export type Action = -1 | 0 | 1
 
@@ -21,27 +21,27 @@ export function nextPower(
   settings: Settings,
 ): number {
   const target = targetPower(step, settings)
-  const { minPower, maxPower, inertia } = settings
-  if (inertia === 0 || minPower === maxPower) return target
-  const distance = ((maxPower - minPower) * elapsedMs) / (inertia * 1000)
+  const { maxPower, inertia } = settings
+  if (inertia === 0 || maxPower === STALL_POWER) return target
+  const distance = ((maxPower - STALL_POWER) * elapsedMs) / (inertia * 1000)
   const position =
     currentSignedPower === 0
       ? 0
-      : Math.sign(currentSignedPower) * (Math.abs(currentSignedPower) - minPower)
-  const destination = target === 0 ? 0 : Math.sign(target) * (Math.abs(target) - minPower)
+      : Math.sign(currentSignedPower) * (Math.abs(currentSignedPower) - STALL_POWER)
+  const destination = target === 0 ? 0 : Math.sign(target) * (Math.abs(target) - STALL_POWER)
   if (Math.sign(currentSignedPower) !== Math.sign(target) && currentSignedPower !== 0) {
     const remaining = Math.abs(position)
     if (distance < remaining)
-      return Math.sign(currentSignedPower) * (minPower + remaining - distance)
+      return Math.sign(currentSignedPower) * (STALL_POWER + remaining - distance)
     if (target === 0) return 0
-    return Math.sign(target) * (minPower + Math.min(Math.abs(destination), distance - remaining))
+    return Math.sign(target) * (STALL_POWER + Math.min(Math.abs(destination), distance - remaining))
   }
   if (target === 0) return 0
   const magnitude = Math.abs(position)
   const goal = Math.abs(destination)
   return (
     Math.sign(target) *
-    (minPower +
+    (STALL_POWER +
       (magnitude < goal
         ? Math.min(goal, magnitude + distance)
         : Math.max(goal, magnitude - distance)))

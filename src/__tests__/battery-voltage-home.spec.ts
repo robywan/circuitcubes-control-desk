@@ -90,7 +90,7 @@ it.each(['notifications', 'request'])(
     await flushPromises()
     await view.get('[aria-label="Aumenta marcia"]').trigger('click')
     await flushPromises()
-    expect(messages).toEqual(['b', '+080a'])
+    expect(messages).toEqual(['b', '+055a'])
     expect(view.text()).toContain('Connesso')
     expect(view.text()).not.toContain('Errore di scrittura')
     expect(disconnect).not.toHaveBeenCalled()
@@ -157,7 +157,7 @@ it('annulla le letture in coda e i timer mentre lo Stop finale è in corso', asy
     writeValueWithResponse: async (value: Uint8Array) => {
       const message = new TextDecoder().decode(value)
       messages.push(message)
-      if (message === '+080a') await drivePending
+      if (message === '+055a') await drivePending
       if (message === '+000a') await stopPending
     },
   }
@@ -170,16 +170,16 @@ it('annulla le letture in coda e i timer mentre lo Stop finale è in corso', asy
   await flushPromises()
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(60_000)
-  expect(messages).toEqual(['b', '+080a'])
+  expect(messages).toEqual(['b', '+055a'])
   await view.get('button').trigger('click')
   finishDrive()
   await flushPromises()
-  expect(messages).toEqual(['b', '+080a', '+000a'])
+  expect(messages).toEqual(['b', '+055a', '+000a'])
   await vi.advanceTimersByTimeAsync(120_000)
-  expect(messages).toEqual(['b', '+080a', '+000a'])
+  expect(messages).toEqual(['b', '+055a', '+000a'])
   finishStop()
   await flushPromises()
-  expect(messages).toEqual(['b', '+080a', '+000a', 'disconnect'])
+  expect(messages).toEqual(['b', '+055a', '+000a', 'disconnect'])
   view.unmount()
 })
 
