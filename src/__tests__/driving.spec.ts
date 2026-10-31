@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { command, nextPower, nextStep } from '../driving'
+import { powerCommand, targetPower, nextPower, nextStep } from '../driving'
 import { defaultSettings } from '../settings'
 
 it('parte dalla Power minima e raggiunge la massima in due secondi', () => {
@@ -23,7 +23,11 @@ it('gestisce Power uguali e inerzia disattivata', () => {
 })
 
 it('calcola la Power per ogni Speed step', () => {
-  expect([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map((step) => command(step))).toEqual([
+  expect(
+    [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map((step) =>
+      powerCommand(targetPower(step, defaultSettings)),
+    ),
+  ).toEqual([
     '-255a',
     '-211a',
     '-168a',
@@ -39,9 +43,9 @@ it('calcola la Power per ogni Speed step', () => {
 })
 
 it('codifica la Power con tre cifre e il segno', () => {
-  expect(command(-1)).toBe('-080a')
-  expect(command(0)).toBe('+000a')
-  expect(command(5)).toBe('+255a')
+  expect(powerCommand(-80)).toBe('-080a')
+  expect(powerCommand(0)).toBe('+000a')
+  expect(powerCommand(255)).toBe('+255a')
 })
 
 it('sposta lo Speed step passando per zero e rispettando i limiti', () => {
