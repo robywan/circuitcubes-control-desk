@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
+import { batteryNotifications, txId } from './battery-fixture'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -13,12 +14,18 @@ it('se una scrittura fallisce disabilita la guida e mantiene visibile l’errore
   const device = new EventTarget() as EventTarget & { gatt: unknown }
   const characteristic = {
     properties: { write: true, writeWithoutResponse: false },
-    writeValueWithResponse: vi.fn<() => Promise<void>>().mockRejectedValue(error),
+    writeValueWithResponse: vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(error),
   }
   device.gatt = {
     connect: async () => ({
       connected: true,
-      getPrimaryService: async () => ({ getCharacteristic: async () => characteristic }),
+      getPrimaryService: async () => ({
+        getCharacteristic: async (id: string) =>
+          id === txId ? batteryNotifications() : characteristic,
+      }),
     }),
     disconnect: () => {},
   }
@@ -45,12 +52,15 @@ it('ferma il Battery Cube prima della disconnessione volontaria', async () => {
     connect: async () => ({
       connected: true,
       getPrimaryService: async () => ({
-        getCharacteristic: async () => ({
-          properties: { write: true, writeWithoutResponse: false },
-          writeValueWithResponse: async (value: Uint8Array) => {
-            messages.push(new TextDecoder().decode(value))
-          },
-        }),
+        getCharacteristic: async (id: string) =>
+          id === txId
+            ? batteryNotifications()
+            : {
+                properties: { write: true, writeWithoutResponse: false },
+                writeValueWithResponse: async (value: Uint8Array) => {
+                  messages.push(new TextDecoder().decode(value))
+                },
+              },
       }),
     }),
 
@@ -73,7 +83,7 @@ it('ferma il Battery Cube prima della disconnessione volontaria', async () => {
 
   await flushPromises()
 
-  expect(messages).toEqual(['+080a', '+000a', 'disconnect'])
+  expect(messages).toEqual(['b', '+080a', '+000a', 'disconnect'])
 
   expect(view.get('[data-testid="step"]').text()).toBe('0')
 })

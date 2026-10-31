@@ -37,9 +37,8 @@ function setPower(field: 'minPower' | 'maxPower', event: Event) {
   settings.value[field] = value
 }
 
-const { available, connected, busy, status, step, drive, toggleConnection } = useBatteryCube(
-  () => settings.value,
-)
+const { available, connected, busy, status, step, voltage, drive, toggleConnection } =
+  useBatteryCube(() => settings.value)
 const remote = useRemote(drive, () => settings.value.remoteSide)
 useWakeLock(connected, remote.connected)
 </script>
@@ -58,7 +57,12 @@ useWakeLock(connected, remote.connected)
       <h2 id="connections" class="text-xl font-semibold">Connessioni</h2>
       <div class="flex items-center gap-3">
         <strong>Battery Cube</strong>
-        <span role="status" class="min-w-0 flex-1 text-sm">{{ status }}</span>
+        <div class="min-w-0 flex-1 text-sm">
+          <span role="status">{{ status }}</span>
+          <span v-if="connected && voltage !== null" class="inline-block whitespace-nowrap">
+            · Batteria {{ voltage.toFixed(2).replace('.', ',') }} V</span
+          >
+        </div>
         <button
           type="button"
           :disabled="!available || busy"

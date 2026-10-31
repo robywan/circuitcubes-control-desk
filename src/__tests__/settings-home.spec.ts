@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
+import { batteryNotifications, txId } from './battery-fixture'
 
 afterEach(() => {
   localStorage.clear()
@@ -16,12 +17,15 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
     connect: async () => ({
       connected: true,
       getPrimaryService: async () => ({
-        getCharacteristic: async () => ({
-          properties: { write: true, writeWithoutResponse: false },
-          writeValueWithResponse: async (v: Uint8Array) => {
-            writes.push(new TextDecoder().decode(v))
-          },
-        }),
+        getCharacteristic: async (id: string) =>
+          id === txId
+            ? batteryNotifications()
+            : {
+                properties: { write: true, writeWithoutResponse: false },
+                writeValueWithResponse: async (v: Uint8Array) => {
+                  writes.push(new TextDecoder().decode(v))
+                },
+              },
       }),
     }),
     disconnect: () => {},
@@ -44,7 +48,7 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   await flushPromises()
   await reloaded.get('button[aria-label="Aumenta marcia"]').trigger('click')
   await flushPromises()
-  expect(writes).toEqual(['-100b'])
+  expect(writes).toEqual(['b', '-100b'])
   expect((reloaded.get('fieldset[disabled]').element as HTMLFieldSetElement).disabled).toBe(true)
   reloaded.unmount()
 })
@@ -63,7 +67,9 @@ it('usa solo il lato Remote configurato', async () => {
     d.gatt = {
       connect: async () => ({
         connected: true,
-        getPrimaryService: async () => ({ getCharacteristic: async () => ch }),
+        getPrimaryService: async () => ({
+          getCharacteristic: async (id: string) => (id === txId ? batteryNotifications() : ch),
+        }),
       }),
       disconnect: () => {},
     }
@@ -95,7 +101,7 @@ it('usa solo il lato Remote configurato', async () => {
     characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
   }
   await flushPromises()
-  expect(writes).toEqual(['+080a'])
+  expect(writes).toEqual(['b', '+080a'])
   expect(view.get('[data-testid="step"]').text()).toBe('+1')
   view.unmount()
 })

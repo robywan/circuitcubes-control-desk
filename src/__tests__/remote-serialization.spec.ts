@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
+import { batteryNotifications, txId } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -24,7 +25,10 @@ it('ferma la Locomotive se l’attivazione del Remote fallisce', async () => {
       gatt: {
         connect: async () => ({
           connected: true,
-          getPrimaryService: async () => ({ getCharacteristic: async () => characteristic }),
+          getPrimaryService: async () => ({
+            getCharacteristic: async (id: string) =>
+              id === txId ? batteryNotifications() : characteristic,
+          }),
         }),
         disconnect: vi.fn<() => void>(),
       },
@@ -54,7 +58,7 @@ it('ferma la Locomotive se l’attivazione del Remote fallisce', async () => {
   expect(remote.gatt.disconnect).toHaveBeenCalledOnce()
   expect(view.text()).toContain('Errore di scrittura')
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(commands).toEqual(['+080a', '+000a'])
+  expect(commands).toEqual(['b', '+080a', '+000a'])
   view.unmount()
 })
 
