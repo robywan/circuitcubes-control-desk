@@ -1,14 +1,18 @@
 import { onUnmounted, ref } from 'vue'
 import { parseBatteryVoltage } from '../battery-voltage'
-import { type Action, command, nextStep } from '../driving'
+import { type Action, nextPower, nextStep, powerCommand } from '../driving'
 import type { Settings } from '../settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 const VOLTAGE_INTERVAL_MS = 60_000
+const DRIVE_INTERVAL_MS = 100
 
-function writeCharacteristic(target: BluetoothRemoteGATTCharacteristic, value: Uint8Array<ArrayBuffer>) {
+function writeCharacteristic(
+  target: BluetoothRemoteGATTCharacteristic,
+  value: Uint8Array<ArrayBuffer>,
+) {
   return target.properties.write
     ? target.writeValueWithResponse(value)
     : target.writeValueWithoutResponse(value)
@@ -20,6 +24,7 @@ export function useBatteryCube(settings: () => Settings) {
   const busy = ref(false)
   const status = ref('Disconnesso')
   const step = ref(0)
+  const power = ref(0)
   const voltage = ref<number | null>(null)
   let txCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
   let generation = 0
@@ -28,6 +33,10 @@ export function useBatteryCube(settings: () => Settings) {
   let writes = Promise.resolve()
   let voltageTimer: ReturnType<typeof setInterval> | undefined
   let polling = false
+  let driveTimer: ReturnType<typeof setInterval> | undefined
+  let lastUpdate = 0
+  let pendingDrive: { value: string } | undefined
+  let lastCommand = ''
 
   function onVoltage(event: Event) {
     if (!connected.value || event.target !== txCharacteristic || !txCharacteristic.value) return
@@ -52,21 +61,32 @@ export function useBatteryCube(settings: () => Settings) {
     device?.removeEventListener('gattserverdisconnected', disconnected)
     connected.value = false
     step.value = 0
+    power.value = 0
+    clearInterval(driveTimer)
+    driveTimer = undefined
+    pendingDrive = undefined
+    lastCommand = ''
     rxCharacteristic = undefined
     if (!status.value.startsWith('Errore')) status.value = 'Disconnesso'
   }
 
-  function drive(action: Action) {
-    if (!connected.value || !rxCharacteristic || (busy.value && action !== 0)) return
-    const next = nextStep(step.value, action)
-    if (next === step.value) return
-    step.value = next
+  function sendPower() {
     const target = rxCharacteristic
-    const value = new TextEncoder().encode(command(next, settings()))
+    if (!target) return
+    const value = powerCommand(power.value, settings())
+    if (value === lastCommand) return
+    lastCommand = value
+    if (pendingDrive) {
+      pendingDrive.value = value
+      return
+    }
+    const pending = { value }
+    pendingDrive = pending
     writes = writes
       .then(async () => {
+        if (pendingDrive === pending) pendingDrive = undefined
         if (rxCharacteristic !== target) return
-        await writeCharacteristic(target, value)
+        await writeCharacteristic(target, new TextEncoder().encode(pending.value))
       })
       .catch((error: unknown) => {
         console.error(error)
@@ -76,6 +96,38 @@ export function useBatteryCube(settings: () => Settings) {
           status.value = 'Errore di scrittura'
         }
       })
+  }
+
+  function updatePower(send = true) {
+    const now = performance.now()
+    power.value = nextPower(power.value, step.value, now - lastUpdate, settings())
+    lastUpdate = now
+    if (send) sendPower()
+    if (power.value === nextPower(power.value, step.value, Infinity, settings())) {
+      clearInterval(driveTimer)
+      driveTimer = undefined
+    }
+  }
+
+  function drive(action: Action) {
+    if (!connected.value || !rxCharacteristic || (busy.value && action !== 0)) return
+    const next = nextStep(step.value, action)
+    if (next === step.value && (action !== 0 || power.value === 0)) return
+    if (driveTimer) updatePower(false)
+    step.value = next
+    if (action === 0) {
+      clearInterval(driveTimer)
+      driveTimer = undefined
+      power.value = 0
+      sendPower()
+      return
+    }
+    lastUpdate = performance.now()
+    const previous = power.value
+    updatePower(false)
+    const moving = power.value !== nextPower(power.value, step.value, Infinity, settings())
+    if (!moving || Math.sign(previous) !== Math.sign(power.value)) sendPower()
+    if (!driveTimer && moving) driveTimer = setInterval(() => updatePower(), DRIVE_INTERVAL_MS)
   }
 
   async function toggleConnection() {
@@ -149,5 +201,5 @@ export function useBatteryCube(settings: () => Settings) {
     disconnected()
   })
 
-  return { available, connected, busy, status, step, voltage, drive, toggleConnection }
+  return { available, connected, busy, status, step, power, voltage, drive, toggleConnection }
 }
