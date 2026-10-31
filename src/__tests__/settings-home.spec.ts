@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import { batteryDevice, batteryNotifications } from './battery-fixture'
 
 afterEach(() => {
+  vi.useRealTimers()
   localStorage.clear()
   vi.unstubAllGlobals()
 })
@@ -40,6 +41,73 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   expect(writes).toEqual(['b', '-100b'])
   expect((reloaded.get('fieldset[disabled]').element as HTMLFieldSetElement).disabled).toBe(true)
   reloaded.unmount()
+})
+
+it('mostra la Power fuori dalle regioni live e blocca le impostazioni durante la frenata', async () => {
+  vi.useFakeTimers()
+  const device = batteryDevice(
+    { properties: { write: true }, writeValueWithResponse: async () => {} },
+    batteryNotifications(),
+  )
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
+  const view = mount(HomeView)
+  await view.get('button').trigger('click')
+  await vi.advanceTimersByTimeAsync(0)
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(1000)
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
+  const display = view.get('[data-testid="power"]')
+  expect(display.text()).toBe('Power 168')
+  expect(display.element.closest('output, [aria-live], [role="status"], [role="alert"]')).toBeNull()
+  expect(view.find('fieldset[disabled]').exists()).toBe(true)
+  await vi.advanceTimersByTimeAsync(1000)
+  await view.vm.$nextTick()
+  expect(display.text()).toBe('Power 0')
+  expect(view.find('fieldset[disabled]').exists()).toBe(false)
+  view.unmount()
+  vi.useRealTimers()
+})
+
+it('accoda solo la Power più recente se una scrittura è lenta', async () => {
+  vi.useFakeTimers()
+  const messages: string[] = []
+  let finish!: () => void
+  const blocked = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  const device = batteryDevice(
+    {
+      properties: { write: true },
+      writeValueWithResponse: (value: Uint8Array) => {
+        const message = new TextDecoder().decode(value)
+        messages.push(message)
+        return message === '+080a' ? blocked : Promise.resolve()
+      },
+    },
+    batteryNotifications(),
+  )
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
+  const view = mount(HomeView)
+  await view.get('button').trigger('click')
+  await vi.advanceTimersByTimeAsync(0)
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(500)
+  expect(messages).toEqual(['b', '+080a'])
+  finish()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(messages).toEqual(['b', '+080a', '+124a'])
+  await vi.advanceTimersByTimeAsync(100)
+  expect(messages).toEqual(['b', '+080a', '+124a', '+133a'])
+  await view
+    .findAll('button')
+    .find((button) => button.text() === 'Stop')!
+    .trigger('click')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(messages[messages.length - 1]).toBe('+000a')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(messages[messages.length - 1]).toBe('+000a')
+  view.unmount()
 })
 
 it('usa solo il lato Remote configurato', async () => {

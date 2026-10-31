@@ -93,7 +93,7 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
   remote.dispatchEvent(new Event('gattserverdisconnected'))
   await flushPromises()
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(cubeWrites).toEqual(['b', '+080a', '+000a', '-080a', '+000a', '+080a', '+000a'])
+  expect(cubeWrites).toEqual(['b', '+080a', '+080a', '+000a'])
   activePorts.clear()
   await connect()[0]!.trigger('click')
   await flushPromises()

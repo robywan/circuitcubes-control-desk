@@ -5,6 +5,7 @@ export interface Settings {
   inverted: boolean
   minPower: number
   maxPower: number
+  inertia: number
   remoteSide: 'left' | 'right'
 }
 
@@ -13,6 +14,7 @@ export const defaultSettings: Settings = {
   inverted: false,
   minPower: 80,
   maxPower: 255,
+  inertia: 2,
   remoteSide: 'left',
 }
 
@@ -37,6 +39,7 @@ export function loadSettings(raw: string | null): Settings {
     inverted: typeof data.inverted === 'boolean' ? data.inverted : defaultSettings.inverted,
     minPower: minPower <= maxPower ? minPower : defaultSettings.minPower,
     maxPower: minPower <= maxPower ? maxPower : defaultSettings.maxPower,
+    inertia: defaultSettings.inertia,
     remoteSide:
       data.remoteSide === 'left' || data.remoteSide === 'right'
         ? data.remoteSide

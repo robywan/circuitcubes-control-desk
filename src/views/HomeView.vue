@@ -37,7 +37,7 @@ function setPower(field: 'minPower' | 'maxPower', event: Event) {
   settings.value[field] = value
 }
 
-const { available, connected, busy, status, step, voltage, drive, toggleConnection } =
+const { available, connected, busy, status, step, power, voltage, drive, toggleConnection } =
   useBatteryCube(() => settings.value)
 const remote = useRemote(drive, () => settings.value.remoteSide)
 useWakeLock(connected, remote.connected)
@@ -92,6 +92,7 @@ useWakeLock(connected, remote.connected)
         <output data-testid="step" class="text-5xl font-bold">{{
           step > 0 ? `+${step}` : step < 0 ? `−${-step}` : '0'
         }}</output>
+        <p data-testid="power">Power {{ Math.round(Math.abs(power)) }}</p>
       </div>
       <div class="flex gap-3">
         <button
@@ -124,7 +125,7 @@ useWakeLock(connected, remote.connected)
     </section>
     <section aria-labelledby="settings" class="space-y-4">
       <h2 id="settings" class="text-xl font-semibold">Impostazioni</h2>
-      <fieldset :disabled="step !== 0" class="space-y-4 disabled:opacity-50">
+      <fieldset :disabled="step !== 0 || power !== 0" class="space-y-4 disabled:opacity-50">
         <fieldset>
           <legend class="font-semibold">Channel</legend>
           <div class="flex gap-4">

@@ -45,7 +45,6 @@ it.each([true, false])(
     expect(write.mock.calls.map(([value]) => new TextDecoder().decode(value))).toEqual([
       'b',
       '+080a',
-      '+124a',
       '+000a',
     ])
     expect(view.get('[data-testid="step"]').text()).toBe('0')
@@ -122,7 +121,7 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   expect(new TextDecoder().decode(write.mock.calls[1]![0])).toBe('+080a')
   finish()
   await flushPromises()
-  expect(new TextDecoder().decode(write.mock.calls[2]![0])).toBe('+124a')
+  expect(write).toHaveBeenCalledTimes(2)
   device.gatt.connected = false
   device.dispatchEvent(new Event('gattserverdisconnected'))
   await flushPromises()
