@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -43,7 +43,7 @@ async function connect() {
     },
   })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   return { view, messages, remote, characteristic }
 }
@@ -75,7 +75,7 @@ it.each([
 it.each(['schermo', 'Remote'])('Stop %s ferma subito durante l’accelerazione allo Speed step 1', async (kind) => {
   const { view, messages, characteristic } = await connect()
   if (kind === 'Remote') {
-    await view.findAll('button')[1]!.trigger('click')
+    await connectionButton(view, 'Remote').trigger('click')
     await flushPromises()
   }
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
@@ -152,7 +152,7 @@ it('riprende nella stessa Direction dalla Power raggiunta durante la frenata', a
 
 it('ignora la Direction opposta dal Remote fino allo stop', async () => {
   const { view, messages, characteristic } = await connect()
-  await view.findAll('button')[1]!.trigger('click')
+  await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   const press = async (button: number) => {
     characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 0, button]).buffer)
@@ -180,7 +180,7 @@ it.each(['Battery Cube', 'Remote volontario', 'Remote caduta'])(
   async (kind) => {
     const { view, messages, remote } = await connect()
     if (kind !== 'Battery Cube') {
-      await view.findAll('button')[1]!.trigger('click')
+      await connectionButton(view, 'Remote').trigger('click')
       await flushPromises()
     }
     for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
@@ -188,7 +188,7 @@ it.each(['Battery Cube', 'Remote volontario', 'Remote caduta'])(
     expect(view.get('[data-testid="power"]').text()).toBe('Power 105')
     const before = messages.length
     if (kind === 'Remote caduta') remote.dispatchEvent(new Event('gattserverdisconnected'))
-    else await view.findAll('button')[kind === 'Battery Cube' ? 0 : 1]!.trigger('click')
+    else await connectionButton(view, kind === 'Battery Cube' ? 'Battery Cube' : 'Remote').trigger('click')
     await view.vm.$nextTick()
     expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
     expect(view.get('[data-testid="step"]').text()).toBe('0')

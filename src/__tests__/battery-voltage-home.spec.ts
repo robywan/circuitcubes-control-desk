@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
 
-import { batteryDevice } from './battery-fixture'
+import { batteryDevice, connectionButton } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -29,7 +29,7 @@ it('attende le notifiche, richiede la Battery voltage e la mostra fuori dalla re
   const device = batteryDevice(rx, tx)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   expect(view.text()).not.toContain('Connesso')
   expect(messages).toEqual([])
@@ -57,7 +57,7 @@ it('attende le notifiche, richiede la Battery voltage e la mostra fuori dalla re
   await flushPromises()
   expect(view.text()).not.toContain('Batteria')
   tx.dispatchEvent(new Event('characteristicvaluechanged'))
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   expect(view.text()).not.toContain('Batteria')
   view.unmount()
@@ -86,7 +86,7 @@ it.each(['notifications', 'request'])(
     const device = batteryDevice(rx, tx, disconnect)
     vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
     const view = mount(HomeView)
-    await view.get('button').trigger('click')
+    await connectionButton(view, 'Battery Cube').trigger('click')
     await flushPromises()
     await view.get('[aria-label="Aumenta marcia"]').trigger('click')
     await flushPromises()
@@ -115,7 +115,7 @@ it('aggiorna la Battery voltage ogni 60 s e riparte una sola volta dopo la ricon
   const device = batteryDevice(rx, tx)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   expect(messages).toEqual(['b'])
   await vi.advanceTimersByTimeAsync(59_999)
@@ -131,7 +131,7 @@ it('aggiorna la Battery voltage ogni 60 s e riparte una sola volta dopo la ricon
   await vi.advanceTimersByTimeAsync(120_000)
   expect(messages).toEqual(['b', 'b'])
   expect(view.text()).not.toContain('Batteria')
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   await vi.advanceTimersByTimeAsync(60_000)
   expect(messages).toEqual(['b', 'b', 'b', 'b'])
@@ -166,12 +166,12 @@ it('annulla le letture in coda e i timer mentre lo Stop finale è in corso', asy
   })
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(60_000)
   expect(messages).toEqual(['b', '+055a'])
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   finishDrive()
   await flushPromises()
   expect(messages).toEqual(['b', '+055a', '+000a'])
@@ -194,7 +194,7 @@ it('ignora la conclusione delle notifiche dopo la disconnessione', async () => {
   const device = batteryDevice(rx, tx)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   device.dispatchEvent(new Event('gattserverdisconnected'))
   finish()

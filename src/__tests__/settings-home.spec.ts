@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -35,7 +35,7 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   expect((reloaded.get('input[value="B"]').element as HTMLInputElement).checked).toBe(true)
   expect((reloaded.get('#min-power').element as HTMLInputElement).value).toBe('100')
   expect((reloaded.get('input[value="right"]').element as HTMLInputElement).checked).toBe(true)
-  await reloaded.get('button').trigger('click')
+  await connectionButton(reloaded, 'Battery Cube').trigger('click')
   await flushPromises()
   await reloaded.get('button[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(500)
@@ -96,7 +96,7 @@ it('applica Inerzia 0 immediatamente e Inerzia 5 alla guida successiva', async (
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
   await view.get('#inertia').setValue(0)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await vi.advanceTimersByTimeAsync(0)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(0)
@@ -121,7 +121,7 @@ it('mostra la Power fuori dalle regioni live e blocca le impostazioni durante la
   )
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await vi.advanceTimersByTimeAsync(0)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(1000)
@@ -158,7 +158,7 @@ it('accoda solo la Power più recente se una scrittura è lenta', async () => {
   )
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await vi.advanceTimersByTimeAsync(0)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(500)
@@ -205,9 +205,9 @@ it('usa solo il lato Remote configurato', async () => {
     },
   })
   const view = mount(HomeView)
-  await view.findAll('button')[0]!.trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
-  await view.findAll('button')[1]!.trigger('click')
+  await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   for (const port of [0, 1]) {
     characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, port, 1]).buffer)

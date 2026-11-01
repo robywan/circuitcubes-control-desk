@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -21,7 +21,7 @@ it('se una scrittura fallisce disabilita la guida e mantiene visibile l’errore
   const device = batteryDevice(characteristic, batteryNotifications())
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await flushPromises()
@@ -51,13 +51,13 @@ it('ferma il Battery Cube prima della disconnessione volontaria', async () => {
 
   const view = mount(HomeView)
 
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
 
   await flushPromises()
 
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
 
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
 
   await flushPromises()
 

@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -35,11 +35,11 @@ it('ferma la Locomotive se l’attivazione del Remote fallisce', async () => {
     .mockResolvedValueOnce(remote)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await flushPromises()
-  await view.findAll('button')[1]!.trigger('click')
+  await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   await vi.advanceTimersByTimeAsync(100)
   await flushPromises()
@@ -78,7 +78,7 @@ it('serializza l’attivazione dei due lati e ignora eventi iniziali duplicati',
   }
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.findAll('button')[1]!.trigger('click')
+  await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   characteristic.value = new DataView(Uint8Array.from([5, 0, 4, 0x3c, 1]).buffer)
   characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
@@ -118,7 +118,7 @@ it('non completa una vecchia attivazione dopo la riconnessione', async () => {
   }
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  const remote = view.findAll('button')[1]!
+  const remote = connectionButton(view, 'Remote')
   await remote.trigger('click')
   await flushPromises()
   characteristic.value = new DataView(Uint8Array.from([5, 0, 4, 0x3c, 1]).buffer)

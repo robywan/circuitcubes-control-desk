@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -52,8 +52,7 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
     .mockResolvedValueOnce(remote)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice } })
   const view = mount(HomeView)
-  const connect = () => view.findAll('button').filter((button) => button.text() === 'Connetti')
-  await connect()[1]!.trigger('click')
+  await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   expect(requestDevice).toHaveBeenCalledWith({
     filters: [{ services: ['00001623-1212-efde-1623-785feabcd123'] }],
@@ -77,7 +76,7 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
   notify([5, 0, 0x04, 0x3c, 1])
   await vi.advanceTimersByTimeAsync(200)
   expect(remoteWrites).toHaveLength(2)
-  await connect()[0]!.trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   notify([5, 0, 0x45, 1, 1])
   notify([5, 0, 0x08, 0, 1])
@@ -95,7 +94,7 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
   expect(view.get('[data-testid="step"]').text()).toBe('0')
   expect(cubeWrites).toEqual(['b', '+055a', '+055a', '+000a'])
   activePorts.clear()
-  await connect()[0]!.trigger('click')
+  await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   await vi.advanceTimersByTimeAsync(200)
   expect(remoteWrites).toEqual([
@@ -106,9 +105,7 @@ it('attiva i tasti a ogni connessione anche senza evento iniziale e ferma la Loc
   ])
   notify([5, 0, 0x45, 0, 1])
   await flushPromises()
-  await view
-    .findAll('button')
-    .filter((button) => button.text() === 'Disconnetti')[1]!
+  await connectionButton(view, 'Remote')
     .trigger('click')
   await flushPromises()
   expect(view.get('[data-testid="step"]').text()).toBe('0')
@@ -145,9 +142,9 @@ it.each([1, 0xff])(
       .mockResolvedValueOnce(remote)
     vi.stubGlobal('navigator', { bluetooth: { requestDevice } })
     const view = mount(HomeView)
-    await view.findAll('button')[0]!.trigger('click')
+    await connectionButton(view, 'Battery Cube').trigger('click')
     await flushPromises()
-    await view.findAll('button')[1]!.trigger('click')
+    await connectionButton(view, 'Remote').trigger('click')
     await flushPromises()
     const notify = (button: number) => {
       characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 0, button]).buffer)
@@ -155,7 +152,7 @@ it.each([1, 0xff])(
     }
     notify(1)
     await flushPromises()
-    await view.findAll('button')[0]!.trigger('click')
+    await connectionButton(view, 'Battery Cube').trigger('click')
     notify(button)
     await flushPromises()
     expect(view.get('[data-testid="step"]').text()).toBe('0')

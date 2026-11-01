@@ -1,3 +1,9 @@
+import type { VueWrapper } from '@vue/test-utils'
+
+export function connectionButton(view: VueWrapper, name: 'Battery Cube' | 'Remote') {
+  return view.findAll('section[aria-labelledby="connections"] > div').find((row) => row.get('strong').text() === name)!.get('button')
+}
+
 export const txId = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 export function batteryDevice<R, T>(rx: R, tx: T, disconnect: () => void = () => {}) {
   return Object.assign(new EventTarget(), {

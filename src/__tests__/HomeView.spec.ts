@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications, txId } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton, txId } from './battery-fixture'
 
 const service = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 
@@ -29,7 +29,7 @@ it.each([true, false])(
     const device = batteryDevice(characteristic, batteryNotifications(), vi.fn<() => void>())
     vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
     const view = mount(HomeView)
-    await view.get('button').trigger('click')
+    await connectionButton(view, 'Battery Cube').trigger('click')
     await flushPromises()
     await view.get('[aria-label="Aumenta marcia"]').trigger('click')
     await view.get('[aria-label="Aumenta marcia"]').trigger('click')
@@ -110,13 +110,13 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   const requestDevice = vi.fn<(options: unknown) => Promise<typeof device>>(async () => device)
   vi.stubGlobal('navigator', { bluetooth: { requestDevice } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   expect(requestDevice).toHaveBeenCalledWith({ filters: [{ services: [service] }] })
   expect(view.text()).toContain('Connesso')
-  const buttons = view.findAll('button')
-  await buttons[4]!.trigger('click')
-  await buttons[4]!.trigger('click')
+  const increase = view.get('[aria-label="Aumenta marcia"]')
+  await increase.trigger('click')
+  await increase.trigger('click')
   expect(write).toHaveBeenCalledTimes(2)
   expect(new TextDecoder().decode(write.mock.calls[1]![0])).toBe('+055a')
   finish()
@@ -127,7 +127,7 @@ it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', 
   await flushPromises()
   expect(view.text()).toContain('Disconnesso')
   expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(buttons[4]!.attributes('disabled')).toBeDefined()
+  expect(increase.attributes('disabled')).toBeDefined()
 })
 
 it('mostra gli errori di connessione e registra il dettaglio', async () => {
@@ -141,7 +141,7 @@ it('mostra gli errori di connessione e registra il dettaglio', async () => {
     },
   })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
   expect(view.text()).toContain('Errore')
   expect(log).toHaveBeenCalledWith(error)
@@ -170,7 +170,7 @@ it('gestisce la caduta GATT durante la ricerca del servizio mantenendo la guida 
   device.gatt = server
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView)
-  await view.get('button').trigger('click')
+  await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
 
   expect(log).toHaveBeenCalledWith(error)
