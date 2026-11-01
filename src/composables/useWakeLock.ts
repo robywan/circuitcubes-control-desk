@@ -30,7 +30,7 @@ export function useWakeLock(cube: Readonly<Ref<boolean>>, remote: Readonly<Ref<b
       return
     }
 
-    if (lock) return
+    if (lock || !navigator.wakeLock) return
 
     pending = true
     retry = false

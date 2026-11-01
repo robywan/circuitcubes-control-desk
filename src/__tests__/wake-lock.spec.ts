@@ -63,11 +63,19 @@ it('reacquires on visibility return after browser release, not while hidden', as
   expect(request).toHaveBeenCalledTimes(2)
 })
 
-it.each(['missing', 'rejected'])('keeps working when wake lock is %s', async (mode) => {
+it('ignores unavailable wake lock without logging an error', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-  if (mode === 'missing')
-    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: undefined })
-  else request.mockRejectedValue(new Error('denied'))
+  Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: undefined })
+  cube.value = true
+  start()
+  await flushPromises()
+  expect(request).not.toHaveBeenCalled()
+  expect(error).not.toHaveBeenCalled()
+})
+
+it('keeps working and reports rejected wake lock requests', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  request.mockRejectedValue(new Error('denied'))
   cube.value = true
   start()
   await flushPromises()

@@ -306,6 +306,7 @@ it('accoda solo la Power più recente se una scrittura è lenta', async () => {
 })
 
 it('usa solo il lato Remote configurato', async () => {
+  vi.useFakeTimers()
   const setup = mount(HomeView, { attachTo: document.body })
   const setupSheet = await openSettings(setup)
   await setupSheet.get('button[role="radio"][value="right"]').trigger('click')
@@ -313,8 +314,10 @@ it('usa solo il lato Remote configurato', async () => {
   const characteristic = new EventTarget() as EventTarget & {
     value: DataView
     startNotifications: () => Promise<unknown>
+    writeValueWithResponse: (value: Uint8Array) => Promise<void>
   }
   characteristic.startNotifications = async () => characteristic
+  characteristic.writeValueWithResponse = async () => {}
   const device = (ch: unknown) => batteryDevice(ch, batteryNotifications())
   const writes: string[] = []
   const cube = device({
@@ -346,6 +349,8 @@ it('usa solo il lato Remote configurato', async () => {
   }
   await flushPromises()
   expect(writes).toEqual(['b', '+055a'])
+  await vi.advanceTimersByTimeAsync(200)
+  expect(writes).toEqual(['b', '+055a', '+065a', '+075a'])
   expect(view.get('[data-testid="step"]').text()).toBe('+1')
   expect(sheet.find('fieldset[disabled]').exists()).toBe(true)
   expect(sheet.get('[role="alert"]').text()).toContain('Ferma la Locomotive')
