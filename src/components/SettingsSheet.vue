@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { Settings as SettingsIcon } from 'lucide-vue-next'
-import { channels, STALL_POWER, validInertia, validPower, type Settings } from '@/domain/settings'
+import { channels, STALL_POWER, type Settings } from '@/domain/settings'
+import { NumberField, NumberFieldContent, NumberFieldDecrement, NumberFieldIncrement, NumberFieldInput } from '@/components/ui/number-field'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 
-defineProps<{ stopped: boolean }>()
+const props = defineProps<{ stopped: boolean }>()
 const settings = defineModel<Settings>({ required: true })
 const channel = computed({
   get: () => settings.value.channel,
@@ -22,33 +23,21 @@ const remoteSide = computed({
   set: (remoteSide) => { settings.value = { ...settings.value, remoteSide } },
 })
 
-const error = ref('')
-function setPower(field: 'minPower' | 'maxPower', event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = input.value === '' ? NaN : input.valueAsNumber
-  if (
-    !validPower(value) ||
-    (field === 'minPower' ? value > settings.value.maxPower : value < settings.value.minPower)
-  ) {
-    error.value = `Inserisci un valore intero tra ${STALL_POWER} e 255; la Power minima non può superare la massima.`
-    input.value = String(settings.value[field])
-    return
-  }
-  error.value = ''
-  settings.value = { ...settings.value, [field]: value }
+function numberSetting(field: 'minPower' | 'maxPower' | 'inertia') {
+  return computed({
+    get: () => settings.value[field],
+    set: (value: number | undefined) => {
+      if (props.stopped && value !== undefined) settings.value = { ...settings.value, [field]: value }
+    },
+  })
 }
+const minPower = numberSetting('minPower')
+const maxPower = numberSetting('maxPower')
+const inertia = numberSetting('inertia')
 
-const inertiaError = ref('')
-function setInertia(event: Event) {
+function restoreEmpty(event: FocusEvent, value: number) {
   const input = event.target as HTMLInputElement
-  const value = input.valueAsNumber
-  if (!validInertia(value)) {
-    inertiaError.value = 'Inserisci un valore tra 0 e 10 a passi di 0,5.'
-    input.value = String(settings.value.inertia)
-    return
-  }
-  inertiaError.value = ''
-  settings.value = { ...settings.value, inertia: value }
+  if (!input.value) input.value = new Intl.NumberFormat('it-IT').format(value)
 }
 
 </script>
@@ -81,53 +70,34 @@ function setInertia(event: Event) {
         <Label class="flex items-center gap-2"
           ><input v-model="inverted" type="checkbox" /> Inversione senso di marcia</Label
         >
-        <div class="flex gap-3">
-          <label for="min-power" class="min-w-0 flex-1"
-            >Power minima<input
-              id="min-power"
-              type="number"
-              :min="STALL_POWER"
-              max="255"
-              step="1"
-              :value="settings.minPower"
-              :aria-invalid="!!error"
-              aria-describedby="power-error"
-              class="block w-full rounded border border-slate-600 px-2 py-1"
-              @change="setPower('minPower', $event)"
-          /></label>
-          <label for="max-power" class="min-w-0 flex-1"
-            >Power massima<input
-              id="max-power"
-              type="number"
-              :min="STALL_POWER"
-              max="255"
-              step="1"
-              :value="settings.maxPower"
-              :aria-invalid="!!error"
-              aria-describedby="power-error"
-              class="block w-full rounded border border-slate-600 px-2 py-1"
-              @change="setPower('maxPower', $event)"
-          /></label>
+        <div :key="String(stopped)" class="space-y-4">
+          <div class="flex gap-3">
+            <NumberField id="min-power" v-model="minPower" :min="STALL_POWER" :max="settings.maxPower" :step="1" locale="it-IT" :disabled="!stopped" class="min-w-0 flex-1">
+              <Label for="min-power">Power minima</Label>
+              <NumberFieldContent>
+                <NumberFieldDecrement aria-label="Diminuisci Power minima" />
+                <NumberFieldInput @blur="restoreEmpty($event, settings.minPower)" />
+                <NumberFieldIncrement aria-label="Aumenta Power minima" />
+              </NumberFieldContent>
+            </NumberField>
+            <NumberField id="max-power" v-model="maxPower" :min="settings.minPower" :max="255" :step="1" locale="it-IT" :disabled="!stopped" class="min-w-0 flex-1">
+              <Label for="max-power">Power massima</Label>
+              <NumberFieldContent>
+                <NumberFieldDecrement aria-label="Diminuisci Power massima" />
+                <NumberFieldInput @blur="restoreEmpty($event, settings.maxPower)" />
+                <NumberFieldIncrement aria-label="Aumenta Power massima" />
+              </NumberFieldContent>
+            </NumberField>
+          </div>
+          <NumberField id="inertia" v-model="inertia" :min="0" :max="10" :step="0.5" locale="it-IT" :disabled="!stopped">
+            <Label for="inertia">Inerzia (s)</Label>
+            <NumberFieldContent>
+              <NumberFieldDecrement aria-label="Diminuisci Inerzia" />
+              <NumberFieldInput @blur="restoreEmpty($event, settings.inertia)" />
+              <NumberFieldIncrement aria-label="Aumenta Inerzia" />
+            </NumberFieldContent>
+          </NumberField>
         </div>
-        <p v-if="error" id="power-error" role="alert" class="text-red-700">{{ error }}</p>
-        <div class="flex gap-3">
-          <label for="inertia" class="min-w-0 flex-1"
-            >Inerzia (s)<input
-              id="inertia"
-              type="number"
-              min="0"
-              max="10"
-              step="0.5"
-              :value="settings.inertia"
-              :aria-invalid="!!inertiaError"
-              aria-describedby="inertia-error"
-              class="block w-full rounded border border-slate-600 px-2 py-1"
-              @change="setInertia"
-          /></label>
-        </div>
-        <p v-if="inertiaError" id="inertia-error" role="alert" class="text-red-700">
-          {{ inertiaError }}
-        </p>
         <fieldset>
           <legend class="font-semibold">Lato del Remote</legend>
           <div class="flex gap-4">
