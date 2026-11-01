@@ -5,7 +5,6 @@ Idee rinviate, da riprendere in iterazioni future. Formato: [TODO.md](https://gi
 - [ ] Colore del LED del Remote come indicatore di stato #control-desk-v1
 - [x] Battery voltage del Battery Cube #control-desk-v1
 - [ ] Riconnessione automatica #control-desk-v1
-- [ ] Più Locomotive (es. una per lato del Remote) o più motori per Locomotive #control-desk-v1
 - [-] Sterzo: una Locomotive non sterza #control-desk-v1
 - [x] Inerzia (accelerazione e frenata graduali) #control-desk-v1
 - [ ] Valori separati per accelerazione e frenata #inertia

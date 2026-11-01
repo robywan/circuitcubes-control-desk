@@ -45,5 +45,9 @@ The Power below which a Locomotive's motors do not turn: when starting, the Powe
 _Avoid_: Threshold, minimum power, Power minima, soglia
 
 **Inertia**:
-The gradual change of the Power towards the Power of the current Speed step, the same when accelerating and when braking.
+The gradual change of the Power towards the Power of the current Speed step, the same when speeding up and when slowing down.
 _Avoid_: Momentum, ramp, rampa
+
+**Brake**:
+The driving control that, while held, lowers the Power towards zero at its own rate, regardless of the Inertia; the Speed step follows the Power down.
+_Avoid_: Emergency brake, freno di emergenza
