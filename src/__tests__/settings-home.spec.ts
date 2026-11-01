@@ -140,6 +140,46 @@ it('arrotonda e salva Inerzia con la virgola', async () => {
   reloaded.unmount()
 })
 
+it('imposta e ricarica Brake con limiti, passo e descrizioni accessibili', async () => {
+  vi.stubGlobal('navigator', {})
+  const view = mount(HomeView, { attachTo: document.body })
+  const sheet = await openSettings(view)
+  const brake = sheet.get('#brake')
+  const edit = async (value: string) => {
+    await brake.setValue(value)
+    await brake.trigger('blur')
+    return (brake.element as HTMLInputElement).value
+  }
+  expect((brake.element as HTMLInputElement).value).toBe('1')
+  expect(await edit('11')).toBe('10')
+  expect(await edit('0')).toBe('0,5')
+  expect(await edit('')).toBe('0,5')
+  await sheet
+    .get('[aria-label="Aumenta Freno"]')
+    .trigger('pointerdown', { pointerType: 'mouse', pointerId: 1 })
+  window.dispatchEvent(Object.assign(new Event('pointerup'), { pointerId: 1 }))
+  expect((brake.element as HTMLInputElement).value).toBe('1')
+  await sheet
+    .get('[aria-label="Diminuisci Freno"]')
+    .trigger('pointerdown', { pointerType: 'mouse', pointerId: 1 })
+  window.dispatchEvent(Object.assign(new Event('pointerup'), { pointerId: 1 }))
+  expect((brake.element as HTMLInputElement).value).toBe('0,5')
+  expect(await edit('5,3')).toBe('5,5')
+  for (const [selector, description] of [
+    ['#inertia', 'Secondi per passare da fermo alla Power massima. 0 la disattiva.'],
+    ['#brake', 'Secondi per passare dalla Power massima a fermo tenendo premuto Freno.'],
+  ]) {
+    const id = sheet.get(selector!).attributes('aria-describedby')!
+    expect(document.getElementById(id)?.textContent?.trim()).toBe(description)
+  }
+  view.unmount()
+  const reloaded = mount(HomeView, { attachTo: document.body })
+  const reloadedSheet = await openSettings(reloaded)
+  expect((reloadedSheet.get('#brake').element as HTMLInputElement).value).toBe('5,5')
+  expect((reloadedSheet.get('#inertia').element as HTMLInputElement).value).toBe('2')
+  reloaded.unmount()
+})
+
 it('applica Inerzia 0 immediatamente e Inerzia 5 alla guida successiva', async () => {
   vi.useFakeTimers()
   const writes: string[] = []
@@ -187,10 +227,19 @@ it('mostra la Power fuori dalle regioni live e blocca le impostazioni durante la
   await sheet.get('#inertia').setValue('8')
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   expect((sheet.get('#inertia').element as HTMLInputElement).value).toBe('2')
-  for (const selector of ['#min-power', '#max-power', '#inertia', '[aria-label="Aumenta Inerzia"]']) {
+  for (const selector of [
+    '#min-power',
+    '#max-power',
+    '#inertia',
+    '[aria-label="Aumenta Inerzia"]',
+    '#brake',
+    '[aria-label="Aumenta Freno"]',
+  ]) {
     expect((sheet.get(selector).element as HTMLInputElement).disabled).toBe(true)
   }
-  expect(sheet.get('[role="alert"]').text()).toContain('Ferma la Locomotive per modificare le Impostazioni')
+  expect(sheet.get('[role="alert"]').text()).toContain(
+    'Ferma la Locomotive per modificare le Impostazioni',
+  )
   expect(sheet.find('fieldset[disabled]').exists()).toBe(true)
   await vi.advanceTimersByTimeAsync(1000)
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Diminuisci marcia"]').trigger('click')

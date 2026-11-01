@@ -9,6 +9,7 @@ export interface Settings {
   minPower: number
   maxPower: number
   inertia: number
+  brake: number
   remoteSide: 'left' | 'right'
 }
 
@@ -18,11 +19,14 @@ export const defaultSettings: Settings = {
   minPower: 80,
   maxPower: 255,
   inertia: 2,
+  brake: 1,
   remoteSide: 'left',
 }
 
 export function validPower(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= STALL_POWER && value <= 255
+  return (
+    typeof value === 'number' && Number.isInteger(value) && value >= STALL_POWER && value <= 255
+  )
 }
 
 export function validInertia(value: unknown): value is number {
@@ -47,6 +51,7 @@ export function loadSettings(raw: string | null): Settings {
     minPower: minPower <= maxPower ? minPower : defaultSettings.minPower,
     maxPower: minPower <= maxPower ? maxPower : defaultSettings.maxPower,
     inertia: validInertia(data.inertia) ? data.inertia : defaultSettings.inertia,
+    brake: validInertia(data.brake) && data.brake >= 0.5 ? data.brake : defaultSettings.brake,
     remoteSide:
       data.remoteSide === 'left' || data.remoteSide === 'right'
         ? data.remoteSide

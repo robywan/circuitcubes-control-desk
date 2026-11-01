@@ -12,6 +12,7 @@ it('carica valori validi e ripristina quelli mancanti o non validi', () => {
     minPower: 100,
     maxPower: 200,
     inertia: 2,
+    brake: 1,
     remoteSide: 'right',
   })
   expect(
@@ -22,6 +23,7 @@ it('carica valori validi e ripristina quelli mancanti o non validi', () => {
     minPower: 80,
     maxPower: 255,
     inertia: 2,
+    brake: 1,
     remoteSide: 'left',
   })
   expect(loadSettings('{')).toEqual(loadSettings(null))
@@ -31,6 +33,7 @@ it('carica valori validi e ripristina quelli mancanti o non validi', () => {
     minPower: 80,
     maxPower: 255,
     inertia: 2,
+    brake: 1,
     remoteSide: 'left',
   })
 })
@@ -46,6 +49,19 @@ it.each([
   ['{}', 2],
 ])('carica Inerzia valida o usa il default: %s', (raw, inertia) => {
   expect(loadSettings(raw).inertia).toBe(inertia)
+})
+
+it.each([
+  ['{"brake":0.5}', 0.5],
+  ['{"brake":1}', 1],
+  ['{"brake":10}', 10],
+  ['{"brake":0}', 1],
+  ['{"brake":10.5}', 1],
+  ['{"brake":0.3}', 1],
+  ['{"brake":"5"}', 1],
+  ['{}', 1],
+])('carica Brake valida o usa il default: %s', (raw, brake) => {
+  expect(loadSettings(raw)).toHaveProperty('brake', brake)
 })
 
 it('ripristina la Power minima salvata sotto la Stall power', () => {

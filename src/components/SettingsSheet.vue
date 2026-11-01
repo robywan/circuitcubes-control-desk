@@ -34,6 +34,7 @@ const remoteSide = settingField('remoteSide')
 const minPower = settingField('minPower')
 const maxPower = settingField('maxPower')
 const inertia = settingField('inertia')
+const brake = settingField('brake')
 
 // Reka leaves an empty input blank on blur even when the model retains its value.
 function restoreEmpty(event: FocusEvent, value: number) {
@@ -113,22 +114,54 @@ function restoreEmpty(event: FocusEvent, value: number) {
                 </NumberFieldContent>
               </NumberField>
             </div>
-            <NumberField
-              id="inertia"
-              v-model="inertia"
-              :min="0"
-              :max="10"
-              :step="0.5"
-              locale="it-IT"
-              :disabled="!stopped"
-            >
-              <Label for="inertia">Inerzia (s)</Label>
-              <NumberFieldContent>
-                <NumberFieldDecrement aria-label="Diminuisci Inerzia" />
-                <NumberFieldInput @blur="restoreEmpty($event, settings.inertia)" />
-                <NumberFieldIncrement aria-label="Aumenta Inerzia" />
-              </NumberFieldContent>
-            </NumberField>
+            <div class="flex gap-3">
+              <NumberField
+                id="inertia"
+                v-model="inertia"
+                :min="0"
+                :max="10"
+                :step="0.5"
+                locale="it-IT"
+                :disabled="!stopped"
+                class="min-w-0 flex-1"
+              >
+                <Label for="inertia">Inerzia (s)</Label>
+                <NumberFieldContent>
+                  <NumberFieldDecrement aria-label="Diminuisci Inerzia" />
+                  <NumberFieldInput
+                    aria-describedby="inertia-description"
+                    @blur="restoreEmpty($event, settings.inertia)"
+                  />
+                  <NumberFieldIncrement aria-label="Aumenta Inerzia" />
+                </NumberFieldContent>
+                <p id="inertia-description" class="text-muted-foreground text-sm">
+                  Secondi per passare da fermo alla Power massima. 0 la disattiva.
+                </p>
+              </NumberField>
+              <NumberField
+                id="brake"
+                v-model="brake"
+                :min="0.5"
+                :max="10"
+                :step="0.5"
+                locale="it-IT"
+                :disabled="!stopped"
+                class="min-w-0 flex-1"
+              >
+                <Label for="brake">Freno (s)</Label>
+                <NumberFieldContent>
+                  <NumberFieldDecrement aria-label="Diminuisci Freno" />
+                  <NumberFieldInput
+                    aria-describedby="brake-description"
+                    @blur="restoreEmpty($event, settings.brake)"
+                  />
+                  <NumberFieldIncrement aria-label="Aumenta Freno" />
+                </NumberFieldContent>
+                <p id="brake-description" class="text-muted-foreground text-sm">
+                  Secondi per passare dalla Power massima a fermo tenendo premuto Freno.
+                </p>
+              </NumberField>
+            </div>
           </div>
           <RadioGroup v-model="remoteSide" :disabled="!stopped" aria-labelledby="remote-side-label">
             <div id="remote-side-label" class="font-semibold">Lato del Remote</div>
