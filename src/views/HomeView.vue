@@ -53,7 +53,7 @@ onUnmounted(() => {
   window.removeEventListener('blur', releaseBrake)
   document.removeEventListener('visibilitychange', hideBrake)
 })
-const remote = useRemote(drive, () => settings.value.remoteSide)
+const remote = useRemote(drive, setBrake, () => settings.value.remoteSide)
 useWakeLock(connected, remote.connected)
 </script>
 

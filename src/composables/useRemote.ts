@@ -6,7 +6,11 @@ import type { Settings } from '../domain/settings'
 const SERVICE = '00001623-1212-efde-1623-785feabcd123'
 const CHARACTERISTIC = '00001624-1212-efde-1623-785feabcd123'
 
-export function useRemote(drive: (action: Action) => void, side: () => Settings['remoteSide']) {
+export function useRemote(
+  drive: (action: Action) => void,
+  setBrake: (source: 'remote', pressed: boolean) => void,
+  side: () => Settings['remoteSide'],
+) {
   const connected = ref(false)
   const busy = ref(false)
   const status = ref('Disconnesso')
@@ -21,6 +25,7 @@ export function useRemote(drive: (action: Action) => void, side: () => Settings[
     characteristic?.removeEventListener('characteristicvaluechanged', notification)
     characteristic = undefined
     if (connected.value) drive(0)
+    setBrake('remote', false)
     connected.value = false
     if (!status.value.startsWith('Errore')) status.value = 'Disconnesso'
   }
@@ -50,7 +55,12 @@ export function useRemote(drive: (action: Action) => void, side: () => Settings[
     const value = target.value
     if (!value) return
     const button = decodeRemote(value)
-    if (connected.value && button?.port === (side() === 'left' ? 0 : 1)) drive(button.action)
+    if (!connected.value || !button) return
+    if (button.port === (side() === 'left' ? 0 : 1)) {
+      if (button.action !== 'release') drive(button.action)
+    } else {
+      setBrake('remote', button.action === 0)
+    }
   }
 
   async function toggleConnection() {

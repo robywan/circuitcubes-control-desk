@@ -55,6 +55,111 @@ async function connect() {
   return { view, messages, cube, remote, characteristic }
 }
 
+it.each([
+  ['left', 1],
+  ['right', 0],
+] as const)('il rosso Remote del lato non usato frena con Lato %s', async (side, port) => {
+  localStorage.setItem('control-desk-settings', JSON.stringify({ remoteSide: side }))
+  const { view, messages, characteristic } = await connect()
+  await connectionButton(view, 'Remote').trigger('click')
+  await flushPromises()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, port, 0x7f]).buffer)
+  characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+  await view.vm.$nextTick()
+  expect(view.get('[aria-label="Freno"]').attributes('aria-pressed')).toBe('true')
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(messages.slice(-10)).toEqual([
+    '+235a',
+    '+215a',
+    '+195a',
+    '+175a',
+    '+155a',
+    '+135a',
+    '+115a',
+    '+095a',
+    '+075a',
+    '+000a',
+  ])
+})
+
+it.each([0, 1, 0xff])('il valore %s del lato non usato rilascia senza guidare', async (value) => {
+  const { view, characteristic } = await connect()
+  await connectionButton(view, 'Remote').trigger('click')
+  await flushPromises()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const notify = (button: number) => {
+    characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 1, button]).buffer)
+    characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+  }
+  notify(0x7f)
+  await vi.advanceTimersByTimeAsync(500)
+  notify(value)
+  await vi.advanceTimersByTimeAsync(500)
+  expect(view.get('[data-testid="step"]').text()).toBe('+2')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
+  expect(view.get('[aria-label="Freno"]').attributes('aria-pressed')).toBe('false')
+})
+
+it.each(['remote', 'screen'])('il Freno resta attivo rilasciando prima %s', async (first) => {
+  const { view, characteristic } = await connect()
+  await connectionButton(view, 'Remote').trigger('click')
+  await flushPromises()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const notify = (button: number) => {
+    characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 1, button]).buffer)
+    characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+  }
+  const brake = view.get('[aria-label="Freno"]')
+  notify(0x7f)
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(200)
+  if (first === 'remote') notify(0)
+  else await brake.trigger('pointerup')
+  await vi.advanceTimersByTimeAsync(200)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 175')
+  expect(brake.attributes('aria-pressed')).toBe('true')
+  if (first === 'remote') await brake.trigger('pointerup')
+  else notify(0)
+  await vi.advanceTimersByTimeAsync(200)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 175')
+  expect(brake.attributes('aria-pressed')).toBe('false')
+})
+
+it('Stop sul lato di guida e disconnessione Remote fermano subito durante il Freno', async () => {
+  const { view, messages, characteristic, remote } = await connect()
+  await connectionButton(view, 'Remote').trigger('click')
+  await flushPromises()
+  const notify = (port: number, button: number, type = 0x45) => {
+    characteristic.value = new DataView(Uint8Array.from([5, 0, type, port, button]).buffer)
+    characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+  }
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  notify(1, 0x7f)
+  notify(2, 1, 0x08)
+  await vi.advanceTimersByTimeAsync(100)
+  expect(view.get('[aria-label="Freno"]').attributes('aria-pressed')).toBe('true')
+  notify(0, 1)
+  notify(0, 0xff)
+  expect(view.get('[data-testid="step"]').text()).toBe('+4')
+  notify(0, 0x7f)
+  await flushPromises()
+  expect(messages[messages.length - 1]).toBe('+000a')
+  notify(1, 0)
+  notify(0, 1)
+  await vi.advanceTimersByTimeAsync(300)
+  notify(1, 0x7f)
+  await vi.advanceTimersByTimeAsync(100)
+  remote.dispatchEvent(new Event('gattserverdisconnected'))
+  await flushPromises()
+  expect(messages[messages.length - 1]).toBe('+000a')
+  expect(view.get('[aria-label="Freno"]').attributes('aria-pressed')).toBe('false')
+})
+
 it('Freno a schermo riduce la Power e la mantiene al rilascio', async () => {
   const { view, messages } = await connect()
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
