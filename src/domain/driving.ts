@@ -48,6 +48,19 @@ export function nextPower(
   )
 }
 
+export function brakePower(power: number, elapsedMs: number, settings: Settings): number {
+  if (settings.maxPower === STALL_POWER) return 0
+  const magnitude =
+    Math.abs(power) - ((settings.maxPower - STALL_POWER) * elapsedMs) / (settings.brake * 1000)
+  return magnitude <= STALL_POWER ? 0 : Math.sign(power) * magnitude
+}
+
+export function brakeStep(step: number, power: number, settings: Settings): number {
+  let magnitude = Math.abs(step)
+  while (magnitude > 0 && configuredPower(magnitude, settings) > Math.abs(power)) magnitude--
+  return Math.sign(step) * magnitude || 0
+}
+
 export function powerCommand(signedPower: number, settings: Settings = defaultSettings): string {
   const rounded = Math.round(Math.abs(signedPower))
   return (

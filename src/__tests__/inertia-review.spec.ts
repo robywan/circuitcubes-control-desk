@@ -1,7 +1,12 @@
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications, connectionButton, openSettings } from './battery-fixture'
+import {
+  batteryDevice,
+  batteryNotifications,
+  connectionButton,
+  openSettings,
+} from './battery-fixture'
 
 enableAutoUnmount(afterEach)
 
@@ -47,55 +52,304 @@ async function connect() {
   const view = mount(HomeView, { attachTo: document.body })
   await connectionButton(view, 'Battery Cube').trigger('click')
   await flushPromises()
-  return { view, messages, remote, characteristic }
+  return { view, messages, cube, remote, characteristic }
 }
+
+it('Freno a schermo riduce la Power e la mantiene al rilascio', async () => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('button[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(500)
+  await brake.trigger('pointerup')
+  expect(messages.slice(-5)).toEqual(['+235a', '+215a', '+195a', '+175a', '+155a'])
+  expect(view.get('[data-testid="step"]').text()).toBe('+2')
+  await vi.advanceTimersByTimeAsync(500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(200)
+  expect(messages.slice(-2)).toEqual(['+165a', '+168a'])
+})
+
+it.each([
+  ['Aumenta marcia', '+', '+4'],
+  ['Diminuisci marcia', '-', '−4'],
+])('Freno completa la fermata in entrambe le Direction: %s', async (button, sign, firstStep) => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get(`[aria-label="${button}"]`).trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(100)
+  expect(view.get('[data-testid="step"]').text()).toBe(firstStep)
+  await vi.advanceTimersByTimeAsync(900)
+  expect(messages.slice(-10)).toEqual([
+    `${sign}235a`,
+    `${sign}215a`,
+    `${sign}195a`,
+    `${sign}175a`,
+    `${sign}155a`,
+    `${sign}135a`,
+    `${sign}115a`,
+    `${sign}095a`,
+    `${sign}075a`,
+    '+000a',
+  ])
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+})
+
+it('Freno a +1 prosegue dopo il rilascio e permette di ripartire nella stessa Direction', async () => {
+  const { view, messages } = await connect()
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(300)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(100)
+  await brake.trigger('pointerup')
+  expect(messages[messages.length - 1]).toBe('+060a')
+  await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  expect(view.get('[data-testid="step"]').text()).toBe('+1')
+  await vi.advanceTimersByTimeAsync(200)
+  expect(messages[messages.length - 1]).toBe('+080a')
+})
+
+it('ignora la guida durante Freno e Stop ferma subito', async () => {
+  const { view, messages } = await connect()
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(300)
+  await view.get('[aria-label="Freno"]').trigger('pointerdown')
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
+  expect(view.get('[data-testid="step"]').text()).toBe('+1')
+  await view
+    .findAll('button')
+    .find((button) => button.text() === 'Stop')!
+    .trigger('click')
+  await flushPromises()
+  expect(messages[messages.length - 1]).toBe('+000a')
+})
+
+it.each(['pointerleave', 'pointercancel', 'blur'])('%s rilascia il Freno', async (event) => {
+  const { view } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(500)
+  if (event === 'blur') window.dispatchEvent(new Event('blur'))
+  else await brake.trigger(event)
+  await vi.advanceTimersByTimeAsync(500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
+  expect(brake.attributes('aria-pressed')).toBe('false')
+  const sheet = await openSettings(view)
+  expect(sheet.find('fieldset[disabled]').exists()).toBe(true)
+})
+
+it('dopo il rilascio − riprende dalla Power raggiunta', async () => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(500)
+  await brake.trigger('pointerup')
+  await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(800)
+  expect(messages.slice(-8)).toEqual([
+    '+145a',
+    '+135a',
+    '+125a',
+    '+115a',
+    '+105a',
+    '+095a',
+    '+085a',
+    '+080a',
+  ])
+  expect(view.get('[data-testid="step"]').text()).toBe('+1')
+})
+
+it('Freno da fermo non invia comandi', async () => {
+  const { view, messages } = await connect()
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(1000)
+  await brake.trigger('pointerup')
+  expect(messages).toEqual(['b'])
+  expect(brake.attributes('aria-pressed')).toBe('false')
+})
+
+it('rilascia al tempo effettivo tra due tick', async () => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(150)
+  await brake.trigger('pointerup')
+  await flushPromises()
+  expect(messages.slice(-2)).toEqual(['+235a', '+225a'])
+  await vi.advanceTimersByTimeAsync(500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 225')
+})
+
+it('Freno a +1 continua fino a fermarsi dopo il rilascio', async () => {
+  const { view, messages } = await connect()
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(300)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(100)
+  await brake.trigger('pointerup')
+  await vi.advanceTimersByTimeAsync(100)
+  expect(messages.slice(-2)).toEqual(['+060a', '+000a'])
+})
+
+it('la disconnessione del Battery Cube rilascia il Freno', async () => {
+  const { view, cube } = await connect()
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  expect(brake.attributes('aria-pressed')).toBe('true')
+  cube.dispatchEvent(new Event('gattserverdisconnected'))
+  await flushPromises()
+  expect(brake.attributes('aria-pressed')).toBe('false')
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
+})
+
+it('la pagina nascosta rilascia il Freno', async () => {
+  const { view } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(500)
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+  document.dispatchEvent(new Event('visibilitychange'))
+  await vi.advanceTimersByTimeAsync(500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
+})
+
+it('Freno durante accelerazione adegua subito lo Speed step', async () => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(1000)
+  await view.get('[aria-label="Freno"]').trigger('pointerdown')
+  expect(view.get('[data-testid="step"]').text()).toBe('+2')
+  await vi.advanceTimersByTimeAsync(200)
+  expect(messages.slice(-2)).toEqual(['+135a', '+115a'])
+})
+
+it('Freno completa una fermata con Inerzia anche dopo il rilascio', async () => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(500)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(100)
+  await brake.trigger('pointerup')
+  await vi.advanceTimersByTimeAsync(700)
+  expect(messages.slice(-8)).toEqual([
+    '+185a',
+    '+165a',
+    '+145a',
+    '+125a',
+    '+105a',
+    '+085a',
+    '+065a',
+    '+000a',
+  ])
+})
+
+it('con Inerzia 0 Freno resta graduale e + riparte subito', async () => {
+  const { view, messages } = await connect()
+  const sheet = await openSettings(view)
+  await sheet.get('#inertia').setValue('0')
+  await sheet.get('#inertia').trigger('blur')
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await flushPromises()
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(500)
+  await brake.trigger('pointerup')
+  expect(messages[messages.length - 1]).toBe('+155a')
+  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await flushPromises()
+  expect(messages[messages.length - 1]).toBe('+168a')
+})
+
+it('Spazio tiene premuto il Freno fino al rilascio', async () => {
+  const { view } = await connect()
+  for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('keydown', { key: ' ' })
+  await vi.advanceTimersByTimeAsync(500)
+  await brake.trigger('keyup', { key: ' ' })
+  await vi.advanceTimersByTimeAsync(500)
+  expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
+})
 
 it.each([
   ['Aumenta marcia', 'Diminuisci marcia', '+', '−1'],
   ['Diminuisci marcia', 'Aumenta marcia', '-', '+1'],
-])('accelera e frena allo Speed step 1 in entrambe le Direction: %s', async (start, brake, sign, oppositeStep) => {
-  const { view, messages } = await connect()
-  await view.get(`[aria-label="${start}"]`).trigger('click')
-  await flushPromises()
-  expect(messages).toEqual(['b', `${sign}055a`])
-  await vi.advanceTimersByTimeAsync(300)
-  expect(messages).toEqual(['b', `${sign}055a`, `${sign}065a`, `${sign}075a`, `${sign}080a`])
-  expect(view.get('[data-testid="power"]').text()).toBe('Power 80')
-  await view.get(`[aria-label="${brake}"]`).trigger('click')
-  await vi.advanceTimersByTimeAsync(250)
-  expect(view.get('[data-testid="power"]').text()).toBe('Power 60')
-  await vi.advanceTimersByTimeAsync(50)
-  expect(messages.slice(-3)).toEqual([`${sign}070a`, `${sign}060a`, '+000a'])
-  expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
-  await view.get(`[aria-label="${brake}"]`).trigger('click')
-  await flushPromises()
-  expect(view.get('[data-testid="step"]').text()).toBe(oppositeStep)
-  expect(messages[messages.length - 1]).toBe(`${sign === '+' ? '-' : '+'}055a`)
-  view.unmount()
-})
-
-it.each(['schermo', 'Remote'])('Stop %s ferma subito durante l’accelerazione allo Speed step 1', async (kind) => {
-  const { view, messages, characteristic } = await connect()
-  if (kind === 'Remote') {
-    await connectionButton(view, 'Remote').trigger('click')
+])(
+  'accelera e frena allo Speed step 1 in entrambe le Direction: %s',
+  async (start, brake, sign, oppositeStep) => {
+    const { view, messages } = await connect()
+    await view.get(`[aria-label="${start}"]`).trigger('click')
     await flushPromises()
-  }
-  await view.get('[aria-label="Aumenta marcia"]').trigger('click')
-  await vi.advanceTimersByTimeAsync(100)
-  expect(view.get('[data-testid="power"]').text()).toBe('Power 65')
-  if (kind === 'schermo') await view.findAll('button').find((button) => button.text() === 'Stop')!.trigger('click')
-  else {
-    characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 0, 0x7f]).buffer)
-    characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
-  }
-  await flushPromises()
-  expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
-  expect(view.get('[data-testid="step"]').text()).toBe('0')
-  expect(messages[messages.length - 1]).toBe('+000a')
-  await vi.advanceTimersByTimeAsync(500)
-  expect(messages[messages.length - 1]).toBe('+000a')
-  view.unmount()
-})
+    expect(messages).toEqual(['b', `${sign}055a`])
+    await vi.advanceTimersByTimeAsync(300)
+    expect(messages).toEqual(['b', `${sign}055a`, `${sign}065a`, `${sign}075a`, `${sign}080a`])
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 80')
+    await view.get(`[aria-label="${brake}"]`).trigger('click')
+    await vi.advanceTimersByTimeAsync(250)
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 60')
+    await vi.advanceTimersByTimeAsync(50)
+    expect(messages.slice(-3)).toEqual([`${sign}070a`, `${sign}060a`, '+000a'])
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
+    await view.get(`[aria-label="${brake}"]`).trigger('click')
+    await flushPromises()
+    expect(view.get('[data-testid="step"]').text()).toBe(oppositeStep)
+    expect(messages[messages.length - 1]).toBe(`${sign === '+' ? '-' : '+'}055a`)
+    view.unmount()
+  },
+)
+
+it.each(['schermo', 'Remote'])(
+  'Stop %s ferma subito durante l’accelerazione allo Speed step 1',
+  async (kind) => {
+    const { view, messages, characteristic } = await connect()
+    if (kind === 'Remote') {
+      await connectionButton(view, 'Remote').trigger('click')
+      await flushPromises()
+    }
+    await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 65')
+    if (kind === 'schermo')
+      await view
+        .findAll('button')
+        .find((button) => button.text() === 'Stop')!
+        .trigger('click')
+    else {
+      characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, 0, 0x7f]).buffer)
+      characteristic.dispatchEvent(new Event('characteristicvaluechanged'))
+    }
+    await flushPromises()
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
+    expect(view.get('[data-testid="step"]').text()).toBe('0')
+    expect(messages[messages.length - 1]).toBe('+000a')
+    await vi.advanceTimersByTimeAsync(500)
+    expect(messages[messages.length - 1]).toBe('+000a')
+    view.unmount()
+  },
+)
 
 async function accelerateToPower155() {
   const connection = await connect()
@@ -190,7 +444,10 @@ it.each(['Battery Cube', 'Remote volontario', 'Remote caduta'])(
     expect(view.get('[data-testid="power"]').text()).toBe('Power 105')
     const before = messages.length
     if (kind === 'Remote caduta') remote.dispatchEvent(new Event('gattserverdisconnected'))
-    else await connectionButton(view, kind === 'Battery Cube' ? 'Battery Cube' : 'Remote').trigger('click')
+    else
+      await connectionButton(view, kind === 'Battery Cube' ? 'Battery Cube' : 'Remote').trigger(
+        'click',
+      )
     await view.vm.$nextTick()
     expect(view.get('[data-testid="power"]').text()).toBe('Power 0')
     expect(view.get('[data-testid="step"]').text()).toBe('0')

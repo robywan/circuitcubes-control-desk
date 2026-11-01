@@ -1,6 +1,14 @@
-import { onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { parseBatteryVoltage } from '../domain/battery-voltage'
-import { type Action, nextPower, nextStep, powerCommand, targetPower } from '../domain/driving'
+import {
+  type Action,
+  brakePower,
+  brakeStep,
+  nextPower,
+  nextStep,
+  powerCommand,
+  targetPower,
+} from '../domain/driving'
 import type { Settings } from '../domain/settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
@@ -26,6 +34,9 @@ export function useBatteryCube(settings: () => Settings) {
   const step = ref(0)
   const signedPower = ref(0)
   const voltage = ref<number | null>(null)
+  const brakeSources = ref<('screen' | 'remote')[]>([])
+  const brakePressed = computed(() => brakeSources.value.length > 0)
+  let braking = false
   let txCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
   let generation = 0
   let device: BluetoothDevice | undefined
@@ -67,6 +78,8 @@ export function useBatteryCube(settings: () => Settings) {
     connected.value = false
     step.value = 0
     signedPower.value = 0
+    brakeSources.value = []
+    braking = false
     stopDriving()
     pendingDrive = undefined
     lastCommand = ''
@@ -104,20 +117,62 @@ export function useBatteryCube(settings: () => Settings) {
 
   function updatePower(send = true) {
     const now = performance.now()
-    signedPower.value = nextPower(signedPower.value, step.value, now - lastUpdate, settings())
+    signedPower.value = braking
+      ? brakePower(signedPower.value, now - lastUpdate, settings())
+      : nextPower(signedPower.value, step.value, now - lastUpdate, settings())
+    if (braking) step.value = brakeStep(step.value, signedPower.value, settings())
     lastUpdate = now
     if (send) sendPower()
-    if (signedPower.value === targetPower(step.value, settings())) {
+    if (
+      braking ? signedPower.value === 0 : signedPower.value === targetPower(step.value, settings())
+    ) {
       stopDriving()
     }
   }
 
+  function setBrake(source: 'screen' | 'remote', pressed: boolean) {
+    if (pressed) {
+      if (
+        !connected.value ||
+        !rxCharacteristic ||
+        busy.value ||
+        (step.value === 0 && signedPower.value === 0)
+      )
+        return
+      if (brakeSources.value.includes(source)) return
+      if (brakeSources.value.length === 0) {
+        if (driveTimer) updatePower(false)
+        braking = true
+        step.value = brakeStep(step.value, signedPower.value, settings())
+        lastUpdate = performance.now()
+        if (!driveTimer) driveTimer = setInterval(() => updatePower(), DRIVE_INTERVAL_MS)
+      }
+      brakeSources.value = [...brakeSources.value, source]
+    } else {
+      if (!brakeSources.value.includes(source)) return
+      brakeSources.value = brakeSources.value.filter((item) => item !== source)
+      if (brakeSources.value.length === 0 && braking) {
+        updatePower()
+        if (step.value !== 0) {
+          stopDriving()
+          braking = false
+        }
+      }
+    }
+  }
+
   function drive(action: Action) {
-    if (!connected.value || !rxCharacteristic || (busy.value && action !== 0)) return
+    if (
+      !connected.value ||
+      !rxCharacteristic ||
+      (action !== 0 && (busy.value || brakeSources.value.length > 0))
+    )
+      return
     const next = nextStep(step.value, action, signedPower.value)
     if (next === step.value && (action !== 0 || signedPower.value === 0)) return
     if (driveTimer) updatePower(false)
     step.value = next
+    braking = false
     if (action === 0) {
       stopDriving()
       signedPower.value = 0
@@ -204,5 +259,17 @@ export function useBatteryCube(settings: () => Settings) {
     disconnected()
   })
 
-  return { available, connected, busy, status, step, signedPower, voltage, drive, toggleConnection }
+  return {
+    available,
+    connected,
+    busy,
+    status,
+    step,
+    signedPower,
+    voltage,
+    brakePressed,
+    setBrake,
+    drive,
+    toggleConnection,
+  }
 }

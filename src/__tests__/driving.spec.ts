@@ -1,6 +1,37 @@
 import { expect, it } from 'vitest'
-import { powerCommand, targetPower, nextPower, nextStep } from '../domain/driving'
+import {
+  powerCommand,
+  targetPower,
+  nextPower,
+  nextStep,
+  brakePower,
+  brakeStep,
+} from '../domain/driving'
 import { defaultSettings } from '../domain/settings'
+
+it('riduce la Power al ritmo del Freno', () => {
+  expect(brakePower(255, 100, defaultSettings)).toBe(235)
+  expect(brakePower(255, 1000, defaultSettings)).toBe(0)
+  expect(brakePower(75, 100, defaultSettings)).toBe(0)
+  expect(brakePower(-255, 100, defaultSettings)).toBe(-235)
+  expect(brakePower(255, 0, defaultSettings)).toBe(255)
+  expect(brakePower(255, 100, { ...defaultSettings, brake: 0.5 })).toBe(215)
+  expect(brakePower(55, 0, { ...defaultSettings, maxPower: 55 })).toBe(0)
+})
+
+it('abbassa lo Speed step alla Power raggiunta senza superare lo step attuale', () => {
+  expect(brakeStep(5, 254, defaultSettings)).toBe(4)
+  expect(brakeStep(5, 211, defaultSettings)).toBe(4)
+  expect(brakeStep(5, 210, defaultSettings)).toBe(3)
+  expect(brakeStep(2, 255, defaultSettings)).toBe(2)
+  expect(brakeStep(1, 80, defaultSettings)).toBe(1)
+  expect(brakeStep(1, 79, defaultSettings)).toBe(0)
+  expect(brakeStep(-5, -235, defaultSettings)).toBe(-4)
+  expect(brakeStep(0, 150, defaultSettings)).toBe(0)
+  const equal = { ...defaultSettings, minPower: 100, maxPower: 100 }
+  expect(brakeStep(5, 100, equal)).toBe(5)
+  expect(brakeStep(5, 99, equal)).toBe(0)
+})
 
 it('avvia lo Speed step 1 dalla Stall power e sale fino alla Power minima', () => {
   expect(nextPower(0, 1, 0, defaultSettings)).toBe(55)

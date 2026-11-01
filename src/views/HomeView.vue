@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useBatteryCube } from '../composables/useBatteryCube'
 import { useRemote } from '../composables/useRemote'
 import { loadSettings } from '../domain/settings'
@@ -21,8 +21,38 @@ watch(
   },
   { deep: true, flush: 'sync' },
 )
-const { available, connected, busy, status, step, signedPower, voltage, drive, toggleConnection } =
-  useBatteryCube(() => settings.value)
+const {
+  available,
+  connected,
+  busy,
+  status,
+  step,
+  signedPower,
+  voltage,
+  brakePressed,
+  setBrake,
+  drive,
+  toggleConnection,
+} = useBatteryCube(() => settings.value)
+const releaseBrake = () => setBrake('screen', false)
+const hideBrake = () => {
+  if (document.hidden) releaseBrake()
+}
+watch(
+  [connected, busy],
+  ([isConnected, isBusy]) => {
+    if (!isConnected || isBusy) releaseBrake()
+  },
+  { flush: 'sync' },
+)
+onMounted(() => {
+  window.addEventListener('blur', releaseBrake)
+  document.addEventListener('visibilitychange', hideBrake)
+})
+onUnmounted(() => {
+  window.removeEventListener('blur', releaseBrake)
+  document.removeEventListener('visibilitychange', hideBrake)
+})
 const remote = useRemote(drive, () => settings.value.remoteSide)
 useWakeLock(connected, remote.connected)
 </script>
@@ -93,11 +123,22 @@ useWakeLock(connected, remote.connected)
         </button>
         <button
           type="button"
+          aria-label="Freno"
+          :aria-pressed="brakePressed"
           :disabled="!connected || busy"
-          class="flex-1 rounded border border-slate-600 px-4 py-3 disabled:opacity-50"
-          @click="drive(0)"
+          class="flex-1 select-none rounded border border-slate-600 px-4 py-3 disabled:opacity-50 aria-pressed:bg-slate-700 aria-pressed:text-white"
+          @pointerdown.prevent="setBrake('screen', true)"
+          @pointerup="releaseBrake"
+          @pointercancel="releaseBrake"
+          @pointerleave="releaseBrake"
+          @keydown.space.prevent="!$event.repeat && setBrake('screen', true)"
+          @keydown.enter.prevent="!$event.repeat && setBrake('screen', true)"
+          @keyup.space.prevent="releaseBrake"
+          @keyup.enter.prevent="releaseBrake"
+          @contextmenu.prevent
+          @blur="releaseBrake"
         >
-          Stop
+          Freno
         </button>
         <button
           type="button"
@@ -109,6 +150,14 @@ useWakeLock(connected, remote.connected)
           +
         </button>
       </div>
+      <button
+        type="button"
+        :disabled="!connected || busy"
+        class="w-full rounded border border-slate-600 px-4 py-5 disabled:opacity-50"
+        @click="drive(0)"
+      >
+        Stop
+      </button>
     </section>
   </main>
 </template>
