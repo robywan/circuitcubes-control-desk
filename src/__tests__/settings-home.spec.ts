@@ -46,25 +46,31 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   vi.stubGlobal('navigator', { bluetooth: { requestDevice: async () => device } })
   const view = mount(HomeView, { attachTo: document.body })
   const sheet = await openSettings(view)
-  await sheet.get('input[value="B"]').setValue()
-  await sheet.get('input[type="checkbox"]').setValue(true)
+  expect(sheet.get('[role="radiogroup"][aria-labelledby="channel-label"]').text()).toContain('Channel')
+  await sheet.get('button[role="radio"][value="B"]').trigger('click')
+  await sheet.get('button[role="switch"]').trigger('click')
   await sheet.get('#min-power').setValue(100)
   await sheet.get('#max-power').setValue(99)
   expect(sheet.get('[role="alert"]').text()).toContain('Power minima')
   expect((sheet.get('#max-power').element as HTMLInputElement).value).toBe('255')
-  await sheet.get('input[value="right"]').setValue()
+  expect(sheet.get('[role="radiogroup"][aria-labelledby="remote-side-label"]').text()).toContain('Lato del Remote')
+  await sheet.get('button[role="radio"][value="right"]').trigger('click')
   view.unmount()
   const reloaded = mount(HomeView, { attachTo: document.body })
   const reloadedSheet = await openSettings(reloaded)
-  expect((reloadedSheet.get('input[value="B"]').element as HTMLInputElement).checked).toBe(true)
+  expect(reloadedSheet.get('button[role="radio"][value="B"]').attributes('aria-checked')).toBe('true')
+  expect(reloadedSheet.get('button[role="switch"]').attributes('aria-checked')).toBe('true')
   expect((reloadedSheet.get('#min-power').element as HTMLInputElement).value).toBe('100')
-  expect((reloadedSheet.get('input[value="right"]').element as HTMLInputElement).checked).toBe(true)
+  expect(reloadedSheet.get('button[role="radio"][value="right"]').attributes('aria-checked')).toBe('true')
   await connectionButton(reloaded, 'Battery Cube').trigger('click')
   await flushPromises()
   await reloaded.get('button[aria-label="Aumenta marcia"]').trigger('click')
   await vi.advanceTimersByTimeAsync(500)
   expect(writes).toEqual(['b', '-055b', '-065b', '-075b', '-085b', '-095b', '-100b'])
   expect((reloadedSheet.get('fieldset[disabled]').element as HTMLFieldSetElement).disabled).toBe(true)
+  for (const control of reloadedSheet.findAll('[role="radio"], [role="switch"]')) {
+    expect((control.element as HTMLButtonElement).disabled).toBe(true)
+  }
   reloaded.unmount()
 })
 
@@ -164,11 +170,17 @@ it('mostra la Power fuori dalle regioni live e blocca le impostazioni durante la
   expect(display.element.closest('output, [aria-live], [role="status"], [role="alert"]')).toBeNull()
   expect(sheet.find('fieldset[disabled]').exists()).toBe(true)
   expect(sheet.get('[role="alert"]').text()).toContain('Ferma la Locomotive')
+  for (const control of sheet.findAll('[role="radio"], [role="switch"]')) {
+    expect((control.element as HTMLButtonElement).disabled).toBe(true)
+  }
   await vi.advanceTimersByTimeAsync(1000)
   await view.vm.$nextTick()
   expect(display.text()).toBe('Power 0')
   expect(sheet.find('fieldset[disabled]').exists()).toBe(false)
   expect(sheet.find('[role="alert"]').exists()).toBe(false)
+  for (const control of sheet.findAll('[role="radio"], [role="switch"]')) {
+    expect((control.element as HTMLButtonElement).disabled).toBe(false)
+  }
   view.unmount()
   vi.useRealTimers()
 })
@@ -216,7 +228,10 @@ it('accoda solo la Power più recente se una scrittura è lenta', async () => {
 })
 
 it('usa solo il lato Remote configurato', async () => {
-  localStorage.setItem('control-desk-settings', JSON.stringify({ remoteSide: 'right' }))
+  const setup = mount(HomeView, { attachTo: document.body })
+  const setupSheet = await openSettings(setup)
+  await setupSheet.get('button[role="radio"][value="right"]').trigger('click')
+  setup.unmount()
   const characteristic = new EventTarget() as EventTarget & {
     value: DataView
     startNotifications: () => Promise<unknown>
@@ -245,6 +260,7 @@ it('usa solo il lato Remote configurato', async () => {
   await connectionButton(view, 'Remote').trigger('click')
   await flushPromises()
   const sheet = await openSettings(view)
+  expect(sheet.get('button[role="radio"][value="right"]').attributes('aria-checked')).toBe('true')
   expect(sheet.find('fieldset[disabled]').exists()).toBe(false)
   for (const port of [0, 1]) {
     characteristic.value = new DataView(Uint8Array.from([5, 0, 0x45, port, 1]).buffer)
@@ -271,7 +287,7 @@ it('funziona anche quando localStorage non è disponibile', async () => {
   vi.stubGlobal('navigator', {})
   const view = mount(HomeView, { attachTo: document.body })
   const sheet = await openSettings(view)
-  await sheet.get('input[value="B"]').setValue()
-  expect((sheet.get('input[value="B"]').element as HTMLInputElement).checked).toBe(true)
+  await sheet.get('button[role="radio"][value="B"]').trigger('click')
+  expect(sheet.get('button[role="radio"][value="B"]').attributes('aria-checked')).toBe('true')
   view.unmount()
 })

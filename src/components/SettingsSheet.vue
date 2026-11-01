@@ -4,6 +4,8 @@ import { Settings as SettingsIcon } from 'lucide-vue-next'
 import { channels, STALL_POWER, validInertia, validPower, type Settings } from '@/domain/settings'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 
@@ -69,18 +71,19 @@ function setInertia(event: Event) {
           <AlertDescription>Ferma la Locomotive per modificare le Impostazioni</AlertDescription>
         </Alert>
       <fieldset :disabled="!stopped" class="space-y-4 disabled:opacity-50">
-        <fieldset>
-          <legend class="font-semibold">Channel</legend>
+        <RadioGroup v-model="channel" :disabled="!stopped" aria-labelledby="channel-label">
+          <div id="channel-label" class="font-semibold">Channel</div>
           <div class="flex gap-4">
-            <label v-for="option in channels" :key="option" class="flex items-center gap-2"
-              ><input v-model="channel" type="radio" name="channel" :value="option" />
-              {{ option }}</label
-            >
+            <div v-for="option in channels" :key="option" class="flex items-center gap-2">
+              <RadioGroupItem :id="`channel-${option}`" :value="option" />
+              <Label :for="`channel-${option}`">{{ option }}</Label>
+            </div>
           </div>
-        </fieldset>
-        <Label class="flex items-center gap-2"
-          ><input v-model="inverted" type="checkbox" /> Inversione senso di marcia</Label
-        >
+        </RadioGroup>
+        <div class="flex items-center gap-2">
+          <Switch id="inverted" v-model="inverted" :disabled="!stopped" />
+          <Label for="inverted">Inversione senso di marcia</Label>
+        </div>
         <div class="flex gap-3">
           <label for="min-power" class="min-w-0 flex-1"
             >Power minima<input
@@ -128,19 +131,19 @@ function setInertia(event: Event) {
         <p v-if="inertiaError" id="inertia-error" role="alert" class="text-red-700">
           {{ inertiaError }}
         </p>
-        <fieldset>
-          <legend class="font-semibold">Lato del Remote</legend>
+        <RadioGroup v-model="remoteSide" :disabled="!stopped" aria-labelledby="remote-side-label">
+          <div id="remote-side-label" class="font-semibold">Lato del Remote</div>
           <div class="flex gap-4">
-            <label class="flex items-center gap-2"
-              ><input v-model="remoteSide" type="radio" name="remote-side" value="left" />
-              Sinistro</label
-            >
-            <label class="flex items-center gap-2"
-              ><input v-model="remoteSide" type="radio" name="remote-side" value="right" />
-              Destro</label
-            >
+            <div class="flex items-center gap-2">
+              <RadioGroupItem id="remote-left" value="left" />
+              <Label for="remote-left">Sinistro</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <RadioGroupItem id="remote-right" value="right" />
+              <Label for="remote-right">Destro</Label>
+            </div>
           </div>
-        </fieldset>
+        </RadioGroup>
       </fieldset>
       </div>
     </SheetContent>
