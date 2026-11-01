@@ -64,7 +64,7 @@ it('avvisa quando Bluetooth non è disponibile e disabilita i comandi', () => {
   const view = mount(HomeView)
   expect(view.text()).toContain('Chrome o Edge')
   expect(
-    view.findAll('button').every((button) => button.attributes('disabled') !== undefined),
+    view.findAll('button').filter((button) => button.attributes('aria-label') !== 'Impostazioni').every((button) => button.attributes('disabled') !== undefined),
   ).toBe(true)
 })
 

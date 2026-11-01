@@ -2,7 +2,8 @@
 import { ref, watch } from 'vue'
 import { useBatteryCube } from '../composables/useBatteryCube'
 import { useRemote } from '../composables/useRemote'
-import { channels, loadSettings, STALL_POWER, validInertia, validPower } from '../domain/settings'
+import { loadSettings } from '../domain/settings'
+import SettingsSheet from '../components/SettingsSheet.vue'
 import { useWakeLock } from '../composables/useWakeLock'
 
 const storageKey = 'control-desk-settings'
@@ -20,35 +21,6 @@ watch(
   },
   { deep: true, flush: 'sync' },
 )
-const error = ref('')
-function setPower(field: 'minPower' | 'maxPower', event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = input.value === '' ? NaN : input.valueAsNumber
-  if (
-    !validPower(value) ||
-    (field === 'minPower' ? value > settings.value.maxPower : value < settings.value.minPower)
-  ) {
-    error.value = `Inserisci un valore intero tra ${STALL_POWER} e 255; la Power minima non può superare la massima.`
-    input.value = String(settings.value[field])
-    return
-  }
-  error.value = ''
-  settings.value[field] = value
-}
-
-const inertiaError = ref('')
-function setInertia(event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = input.valueAsNumber
-  if (!validInertia(value)) {
-    inertiaError.value = 'Inserisci un valore tra 0 e 10 a passi di 0,5.'
-    input.value = String(settings.value.inertia)
-    return
-  }
-  inertiaError.value = ''
-  settings.value.inertia = value
-}
-
 const { available, connected, busy, status, step, signedPower, voltage, drive, toggleConnection } =
   useBatteryCube(() => settings.value)
 const remote = useRemote(drive, () => settings.value.remoteSide)
@@ -64,7 +36,10 @@ useWakeLock(connected, remote.connected)
     >
       Web Bluetooth non è disponibile. Usa Chrome o Edge su desktop o Android.
     </p>
-    <h1 class="text-2xl font-bold">CircuitCubes Control Desk</h1>
+    <header class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">CircuitCubes Control Desk</h1>
+      <SettingsSheet v-model="settings" :stopped="step === 0 && signedPower === 0" />
+    </header>
     <section aria-labelledby="connections" class="space-y-4">
       <h2 id="connections" class="text-xl font-semibold">Connessioni</h2>
       <div class="flex items-center gap-3">
@@ -134,84 +109,6 @@ useWakeLock(connected, remote.connected)
           +
         </button>
       </div>
-    </section>
-    <section aria-labelledby="settings" class="space-y-4">
-      <h2 id="settings" class="text-xl font-semibold">Impostazioni</h2>
-      <fieldset :disabled="step !== 0 || signedPower !== 0" class="space-y-4 disabled:opacity-50">
-        <fieldset>
-          <legend class="font-semibold">Channel</legend>
-          <div class="flex gap-4">
-            <label v-for="channel in channels" :key="channel" class="flex items-center gap-2"
-              ><input v-model="settings.channel" type="radio" name="channel" :value="channel" />
-              {{ channel }}</label
-            >
-          </div>
-        </fieldset>
-        <label class="flex items-center gap-2"
-          ><input v-model="settings.inverted" type="checkbox" /> Inversione senso di marcia</label
-        >
-        <div class="flex gap-3">
-          <label for="min-power" class="min-w-0 flex-1"
-            >Power minima<input
-              id="min-power"
-              type="number"
-              :min="STALL_POWER"
-              max="255"
-              step="1"
-              :value="settings.minPower"
-              :aria-invalid="!!error"
-              aria-describedby="power-error"
-              class="block w-full rounded border border-slate-600 px-2 py-1"
-              @change="setPower('minPower', $event)"
-          /></label>
-          <label for="max-power" class="min-w-0 flex-1"
-            >Power massima<input
-              id="max-power"
-              type="number"
-              :min="STALL_POWER"
-              max="255"
-              step="1"
-              :value="settings.maxPower"
-              :aria-invalid="!!error"
-              aria-describedby="power-error"
-              class="block w-full rounded border border-slate-600 px-2 py-1"
-              @change="setPower('maxPower', $event)"
-          /></label>
-        </div>
-        <p v-if="error" id="power-error" role="alert" class="text-red-700">{{ error }}</p>
-        <div class="flex gap-3">
-          <label for="inertia" class="min-w-0 flex-1"
-            >Inerzia (s)<input
-              id="inertia"
-              type="number"
-              min="0"
-              max="10"
-              step="0.5"
-              :value="settings.inertia"
-              :aria-invalid="!!inertiaError"
-              aria-describedby="inertia-error"
-              class="block w-full rounded border border-slate-600 px-2 py-1"
-              @change="setInertia"
-          /></label>
-          <div aria-hidden="true" class="min-w-0 flex-1"></div>
-        </div>
-        <p v-if="inertiaError" id="inertia-error" role="alert" class="text-red-700">
-          {{ inertiaError }}
-        </p>
-        <fieldset>
-          <legend class="font-semibold">Lato del Remote</legend>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-2"
-              ><input v-model="settings.remoteSide" type="radio" name="remote-side" value="left" />
-              Sinistro</label
-            >
-            <label class="flex items-center gap-2"
-              ><input v-model="settings.remoteSide" type="radio" name="remote-side" value="right" />
-              Destro</label
-            >
-          </div>
-        </fieldset>
-      </fieldset>
     </section>
   </main>
 </template>
