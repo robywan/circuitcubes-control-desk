@@ -1,12 +1,9 @@
-import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton, openSettings } from './battery-fixture'
 
-async function openSettings(view: ReturnType<typeof mount>) {
-  await view.get('button[aria-label="Impostazioni"]').trigger('click')
-  return new DOMWrapper(document.body)
-}
+enableAutoUnmount(afterEach)
 
 afterEach(() => {
   vi.useRealTimers()
@@ -72,6 +69,10 @@ it('salva le impostazioni, consente le modifiche solo con la Locomotive ferma e 
   for (const control of reloadedSheet.findAll('[role="radio"], [role="switch"]')) {
     expect((control.element as HTMLButtonElement).disabled).toBe(true)
   }
+  await reloadedSheet.get('button[role="radio"][value="A"]').trigger('click')
+  await reloadedSheet.get('button[role="switch"]').trigger('click')
+  expect(reloadedSheet.get('button[role="radio"][value="B"]').attributes('aria-checked')).toBe('true')
+  expect(reloadedSheet.get('button[role="switch"]').attributes('aria-checked')).toBe('true')
   reloaded.unmount()
 })
 

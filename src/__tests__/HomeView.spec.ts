@@ -63,9 +63,12 @@ it('avvisa quando Bluetooth non è disponibile e disabilita i comandi', () => {
   vi.stubGlobal('navigator', {})
   const view = mount(HomeView)
   expect(view.text()).toContain('Chrome o Edge')
-  expect(
-    view.findAll('button').filter((button) => button.attributes('aria-label') !== 'Impostazioni').every((button) => button.attributes('disabled') !== undefined),
-  ).toBe(true)
+  expect(view.get('button[aria-label="Impostazioni"]').attributes('disabled')).toBeUndefined()
+  for (const section of ['connections', 'driving']) {
+    const buttons = view.get(`section[aria-labelledby="${section}"]`).findAll('button')
+    expect(buttons.length).toBeGreaterThan(0)
+    expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+  }
 })
 
 it('connette, serializza i comandi e azzera lo Speed step alla disconnessione', async () => {

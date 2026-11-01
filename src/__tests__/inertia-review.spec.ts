@@ -1,7 +1,9 @@
-import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 import HomeView from '../views/HomeView.vue'
-import { batteryDevice, batteryNotifications, connectionButton } from './battery-fixture'
+import { batteryDevice, batteryNotifications, connectionButton, openSettings } from './battery-fixture'
+
+enableAutoUnmount(afterEach)
 
 afterEach(() => {
   vi.useRealTimers()
@@ -219,8 +221,7 @@ it('manda il salto iniziale subito e poi scrive solo ai tick di 100 ms', async (
 
 it('scrive ogni 100 ms solo se cambia la Power intera e termina al target', async () => {
   const { view, messages } = await connect()
-  await view.get('button[aria-label="Impostazioni"]').trigger('click')
-  const sheet = new DOMWrapper(document.body)
+  const sheet = await openSettings(view)
   await sheet.get('#min-power').setValue('55')
   await sheet.get('#min-power').trigger('blur')
   await sheet.get('#max-power').setValue('56')

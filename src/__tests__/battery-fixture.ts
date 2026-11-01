@@ -1,4 +1,9 @@
-import type { VueWrapper } from '@vue/test-utils'
+import { DOMWrapper, type VueWrapper } from '@vue/test-utils'
+
+export async function openSettings(view: VueWrapper) {
+  await view.get('button[aria-label="Impostazioni"]').trigger('click')
+  return new DOMWrapper(document.body)
+}
 
 export function connectionButton(view: VueWrapper, name: 'Battery Cube' | 'Remote') {
   return view.findAll('section[aria-labelledby="connections"] > div').find((row) => row.get('strong').text() === name)!.get('button')
