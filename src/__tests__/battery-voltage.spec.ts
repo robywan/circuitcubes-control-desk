@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { parseBatteryVoltage } from '../battery-voltage'
+import { parseBatteryVoltage } from '../domain/battery-voltage'
 
 it.each([
   ['3.92', 3.92],

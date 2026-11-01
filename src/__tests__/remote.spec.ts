@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { decodeRemote } from '../remote'
+import { decodeRemote } from '../domain/remote'
 
 it('decodifica le pressioni dei due lati e ignora gli altri messaggi', () => {
   const decode = (bytes: number[]) => decodeRemote(new DataView(Uint8Array.from(bytes).buffer))

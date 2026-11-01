@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useBatteryCube } from '../composables/useBatteryCube'
 import { useRemote } from '../composables/useRemote'
-import { channels, loadSettings, STALL_POWER, validInertia, validPower } from '../settings'
+import { channels, loadSettings, STALL_POWER, validInertia, validPower } from '../domain/settings'
 import { useWakeLock } from '../composables/useWakeLock'
 
 const storageKey = 'control-desk-settings'

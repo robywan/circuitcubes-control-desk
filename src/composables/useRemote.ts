@@ -1,7 +1,7 @@
 import { onUnmounted, ref } from 'vue'
-import type { Action } from '../driving'
-import { decodeRemote } from '../remote'
-import type { Settings } from '../settings'
+import type { Action } from '../domain/driving'
+import { decodeRemote } from '../domain/remote'
+import type { Settings } from '../domain/settings'
 
 const SERVICE = '00001623-1212-efde-1623-785feabcd123'
 const CHARACTERISTIC = '00001624-1212-efde-1623-785feabcd123'

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { loadSettings } from '../settings'
+import { loadSettings } from '../domain/settings'
 
 it('carica valori validi e ripristina quelli mancanti o non validi', () => {
   expect(

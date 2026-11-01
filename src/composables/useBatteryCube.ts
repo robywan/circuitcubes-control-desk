@@ -1,7 +1,7 @@
 import { onUnmounted, ref } from 'vue'
-import { parseBatteryVoltage } from '../battery-voltage'
-import { type Action, nextPower, nextStep, powerCommand, targetPower } from '../driving'
-import type { Settings } from '../settings'
+import { parseBatteryVoltage } from '../domain/battery-voltage'
+import { type Action, nextPower, nextStep, powerCommand, targetPower } from '../domain/driving'
+import type { Settings } from '../domain/settings'
 
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'

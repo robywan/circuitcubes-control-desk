@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
-import { powerCommand, targetPower, nextPower, nextStep } from '../driving'
-import { defaultSettings } from '../settings'
+import { powerCommand, targetPower, nextPower, nextStep } from '../domain/driving'
+import { defaultSettings } from '../domain/settings'
 
 it('avvia lo Speed step 1 dalla Stall power e sale fino alla Power minima', () => {
   expect(nextPower(0, 1, 0, defaultSettings)).toBe(55)
