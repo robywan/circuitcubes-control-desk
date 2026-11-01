@@ -33,6 +33,10 @@ export function validInertia(value: unknown): value is number {
   return typeof value === 'number' && value >= 0 && value <= 10 && Number.isInteger(value * 2)
 }
 
+function validBrake(value: unknown): value is number {
+  return validInertia(value) && value >= 0.5
+}
+
 export function loadSettings(raw: string | null): Settings {
   let data: Partial<Settings> = {}
 
@@ -51,7 +55,7 @@ export function loadSettings(raw: string | null): Settings {
     minPower: minPower <= maxPower ? minPower : defaultSettings.minPower,
     maxPower: minPower <= maxPower ? maxPower : defaultSettings.maxPower,
     inertia: validInertia(data.inertia) ? data.inertia : defaultSettings.inertia,
-    brake: validInertia(data.brake) && data.brake >= 0.5 ? data.brake : defaultSettings.brake,
+    brake: validBrake(data.brake) ? data.brake : defaultSettings.brake,
     remoteSide:
       data.remoteSide === 'left' || data.remoteSide === 'right'
         ? data.remoteSide

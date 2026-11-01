@@ -19,6 +19,10 @@ it('riduce la Power al ritmo del Freno', () => {
   expect(brakePower(55, 0, { ...defaultSettings, maxPower: 55 })).toBe(0)
 })
 
+it.each([0, 55, -55, 80, -80, 255, -255])('tempo zero mantiene la Power %s con Freno', (power) => {
+  expect(brakePower(power, 0, defaultSettings)).toBe(power)
+})
+
 it('abbassa lo Speed step alla Power raggiunta senza superare lo step attuale', () => {
   expect(brakeStep(5, 254, defaultSettings)).toBe(4)
   expect(brakeStep(5, 211, defaultSettings)).toBe(4)

@@ -11,6 +11,8 @@ import {
 } from '../domain/driving'
 import type { Settings } from '../domain/settings'
 
+export type BrakeSource = 'screen' | 'remote'
+
 const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
@@ -34,8 +36,9 @@ export function useBatteryCube(settings: () => Settings) {
   const step = ref(0)
   const signedPower = ref(0)
   const voltage = ref<number | null>(null)
-  const brakeSources = ref<('screen' | 'remote')[]>([])
+  const brakeSources = ref<BrakeSource[]>([])
   const brakePressed = computed(() => brakeSources.value.length > 0)
+  // .scratch/brake/spec.md, story 8: Speed step 0 completes the Brake stop after release.
   let braking = false
   let txCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
   let generation = 0
@@ -130,7 +133,7 @@ export function useBatteryCube(settings: () => Settings) {
     }
   }
 
-  function setBrake(source: 'screen' | 'remote', pressed: boolean) {
+  function setBrake(source: BrakeSource, pressed: boolean) {
     if (pressed) {
       if (
         !connected.value ||
@@ -143,7 +146,8 @@ export function useBatteryCube(settings: () => Settings) {
       if (brakeSources.value.length === 0) {
         if (driveTimer) updatePower(false)
         braking = true
-        step.value = brakeStep(step.value, signedPower.value, settings())
+        step.value =
+          Math.abs(step.value) <= 1 ? 0 : brakeStep(step.value, signedPower.value, settings())
         lastUpdate = performance.now()
         if (!driveTimer) driveTimer = setInterval(() => updatePower(), DRIVE_INTERVAL_MS)
       }
@@ -165,7 +169,7 @@ export function useBatteryCube(settings: () => Settings) {
     if (
       !connected.value ||
       !rxCharacteristic ||
-      (action !== 0 && (busy.value || brakeSources.value.length > 0))
+      (action !== 0 && (busy.value || brakePressed.value))
     )
       return
     const next = nextStep(step.value, action, signedPower.value)

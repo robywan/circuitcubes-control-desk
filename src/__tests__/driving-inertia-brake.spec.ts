@@ -160,6 +160,61 @@ it('Stop sul lato di guida e disconnessione Remote fermano subito durante il Fre
   expect(view.get('[aria-label="Freno"]').attributes('aria-pressed')).toBe('false')
 })
 
+it.each([
+  ['Aumenta marcia', 'Diminuisci marcia', '+'],
+  ['Diminuisci marcia', 'Aumenta marcia', '-'],
+])('un tocco a Speed step ±1 completa la fermata con Power alta: %s', async (up, down, sign) => {
+  const { view, messages } = await connect()
+  for (let i = 0; i < 5; i++) await view.get(`[aria-label="${up}"]`).trigger('click')
+  await vi.advanceTimersByTimeAsync(2000)
+  for (let i = 0; i < 4; i++) await view.get(`[aria-label="${down}"]`).trigger('click')
+  await vi.advanceTimersByTimeAsync(500)
+  const brake = view.get('[aria-label="Freno"]')
+  await brake.trigger('pointerdown')
+  await vi.advanceTimersByTimeAsync(100)
+  await brake.trigger('pointerup')
+  expect(messages[messages.length - 1]).toBe(`${sign}185a`)
+  await vi.advanceTimersByTimeAsync(700)
+  expect(messages[messages.length - 1]).toBe('+000a')
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
+})
+
+it.each(['Aumenta marcia', 'Diminuisci marcia'])(
+  'un tocco immediato a Power 80 ferma: %s',
+  async (button) => {
+    const { view, messages } = await connect()
+    await view.get(`[aria-label="${button}"]`).trigger('click')
+    await vi.advanceTimersByTimeAsync(300)
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 80')
+    const brake = view.get('[aria-label="Freno"]')
+    await brake.trigger('pointerdown')
+    await brake.trigger('pointerup')
+    await vi.advanceTimersByTimeAsync(200)
+    expect(messages[messages.length - 1]).toBe('+000a')
+  },
+)
+
+it.each([
+  ['Aumenta marcia', '+1', '+095a'],
+  ['Diminuisci marcia', '−1', '-095a'],
+])(
+  'il Freno iniziato sopra ±1 mantiene la Power se rilasciato a ±1: %s',
+  async (button, step, command) => {
+    const { view, messages } = await connect()
+    for (let i = 0; i < 5; i++) await view.get(`[aria-label="${button}"]`).trigger('click')
+    await vi.advanceTimersByTimeAsync(2000)
+    const brake = view.get('[aria-label="Freno"]')
+    await brake.trigger('pointerdown')
+    await vi.advanceTimersByTimeAsync(800)
+    await brake.trigger('pointerup')
+    expect(view.get('[data-testid="step"]').text()).toBe(step)
+    const count = messages.length
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(messages[messages.length - 1]).toBe(command)
+    expect(messages).toHaveLength(count)
+  },
+)
+
 it('Freno a schermo riduce la Power e la mantiene al rilascio', async () => {
   const { view, messages } = await connect()
   for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
@@ -228,7 +283,7 @@ it('ignora la guida durante Freno e Stop ferma subito', async () => {
   await view.get('[aria-label="Freno"]').trigger('pointerdown')
   await view.get('[aria-label="Aumenta marcia"]').trigger('click')
   await view.get('[aria-label="Diminuisci marcia"]').trigger('click')
-  expect(view.get('[data-testid="step"]').text()).toBe('+1')
+  expect(view.get('[data-testid="step"]').text()).toBe('0')
   await view
     .findAll('button')
     .find((button) => button.text() === 'Stop')!
@@ -236,6 +291,33 @@ it('ignora la guida durante Freno e Stop ferma subito', async () => {
   await flushPromises()
   expect(messages[messages.length - 1]).toBe('+000a')
 })
+
+it.each(['mouse', 'touch'])(
+  'uscire dal Freno con cattura implicita rilascia: %s',
+  async (pointerType) => {
+    const { view } = await connect()
+    for (let i = 0; i < 5; i++) await view.get('[aria-label="Aumenta marcia"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(2000)
+    const brake = view.get('[aria-label="Freno"]')
+    vi.spyOn(brake.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 100, 100, 50))
+    const pointer = (type: string, clientX: number) =>
+      brake.element.dispatchEvent(
+        Object.assign(new MouseEvent(type, { clientX, clientY: 125, bubbles: true }), {
+          pointerType,
+          pointerId: 1,
+        }),
+      )
+    pointer('pointerdown', 150)
+    await vi.advanceTimersByTimeAsync(500)
+    pointer('pointermove', 150)
+    await view.vm.$nextTick()
+    expect(brake.attributes('aria-pressed')).toBe('true')
+    pointer('pointermove', 210)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(brake.attributes('aria-pressed')).toBe('false')
+    expect(view.get('[data-testid="power"]').text()).toBe('Power 155')
+  },
+)
 
 it.each(['pointerleave', 'pointercancel', 'blur'])('%s rilascia il Freno', async (event) => {
   const { view } = await connect()

@@ -50,6 +50,7 @@ export function nextPower(
 
 export function brakePower(power: number, elapsedMs: number, settings: Settings): number {
   if (settings.maxPower === STALL_POWER) return 0
+  if (elapsedMs === 0) return power
   const magnitude =
     Math.abs(power) - ((settings.maxPower - STALL_POWER) * elapsedMs) / (settings.brake * 1000)
   return magnitude <= STALL_POWER ? 0 : Math.sign(power) * magnitude

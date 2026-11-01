@@ -1,5 +1,6 @@
 import { onUnmounted, ref } from 'vue'
 import type { Action } from '../domain/driving'
+import type { BrakeSource } from './useBatteryCube'
 import { decodeRemote } from '../domain/remote'
 import type { Settings } from '../domain/settings'
 
@@ -8,7 +9,7 @@ const CHARACTERISTIC = '00001624-1212-efde-1623-785feabcd123'
 
 export function useRemote(
   drive: (action: Action) => void,
-  setBrake: (source: 'remote', pressed: boolean) => void,
+  setBrake: (source: BrakeSource, pressed: boolean) => void,
   side: () => Settings['remoteSide'],
 ) {
   const connected = ref(false)

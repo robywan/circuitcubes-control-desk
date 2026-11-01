@@ -35,6 +35,16 @@ const {
   toggleConnection,
 } = useBatteryCube(() => settings.value)
 const releaseBrake = () => setBrake('screen', false)
+function moveBrake(event: PointerEvent) {
+  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  if (
+    event.clientX < bounds.left ||
+    event.clientX >= bounds.right ||
+    event.clientY < bounds.top ||
+    event.clientY >= bounds.bottom
+  )
+    releaseBrake()
+}
 const hideBrake = () => {
   if (document.hidden) releaseBrake()
 }
@@ -128,6 +138,7 @@ useWakeLock(connected, remote.connected)
           :disabled="!connected || busy"
           class="flex-1 select-none rounded border border-slate-600 px-4 py-3 disabled:opacity-50 aria-pressed:bg-slate-700 aria-pressed:text-white"
           @pointerdown.prevent="setBrake('screen', true)"
+          @pointermove="moveBrake"
           @pointerup="releaseBrake"
           @pointercancel="releaseBrake"
           @pointerleave="releaseBrake"
