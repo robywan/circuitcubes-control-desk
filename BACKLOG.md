@@ -19,3 +19,4 @@ Idee rinviate, da riprendere in iterazioni future. Formato: [TODO.md](https://gi
 - [ ] Grafica curata #control-desk-v1
 - [ ] Avviso di Battery voltage bassa (soglia da tarare sul Battery Cube reale) #battery-voltage
 - [ ] Batteria del Remote (LWP, Hub Property 0x06) #battery-voltage
+- [ ] Tema scuro (variabili shadcn-vue già predisposte) #settings-sheet
